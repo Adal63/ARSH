@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { useAccounting } from '../hooks/useAccounting';
 import { Plus, Edit2, Eye, Send, Search, Filter } from 'lucide-react';
 import { Invoice } from '../types';
+import InvoiceView from './InvoiceView';
+import InvoiceForm from './InvoiceForm';
 
 const Invoices: React.FC = () => {
   const { invoices, customers, addInvoice, updateInvoice } = useAccounting();
@@ -9,6 +11,7 @@ const Invoices: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState('All');
   const [showAddForm, setShowAddForm] = useState(false);
   const [viewingInvoice, setViewingInvoice] = useState<Invoice | null>(null);
+  const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
 
   const filteredInvoices = invoices.filter(invoice => {
     const customer = customers.find(c => c.id === invoice.customerId);
@@ -39,6 +42,33 @@ const Invoices: React.FC = () => {
 
   const handleMarkPaid = (id: string) => {
     updateInvoice(id, { status: 'Paid' });
+  };
+
+  const handleEditInvoice = (invoice: Invoice) => {
+    setEditingInvoice(invoice);
+    setViewingInvoice(null);
+  };
+
+  const handleSendInvoiceFromView = (invoice: Invoice) => {
+    updateInvoice(invoice.id, { status: 'Sent' });
+    setViewingInvoice(null);
+  };
+
+  const handleDownloadInvoice = (invoice: Invoice) => {
+    // Implement PDF download functionality
+    console.log('Downloading invoice:', invoice.number);
+  };
+
+  const handleCreateInvoice = (invoiceData: any) => {
+    addInvoice(invoiceData);
+    setShowAddForm(false);
+  };
+
+  const handleUpdateInvoice = (invoiceData: any) => {
+    if (editingInvoice) {
+      updateInvoice(editingInvoice.id, invoiceData);
+      setEditingInvoice(null);
+    }
   };
 
   return (
@@ -186,6 +216,7 @@ const Invoices: React.FC = () => {
                         <Eye className="w-4 h-4" />
                       </button>
                       <button
+                        onClick={() => handleEditInvoice(invoice)}
                         className="text-green-400 hover:text-green-300 transition-colors"
                         title="Edit Invoice"
                       >
@@ -218,75 +249,33 @@ const Invoices: React.FC = () => {
         </div>
       </div>
 
-      {/* Invoice Preview Modal */}
+      {/* Enhanced Invoice View Modal */}
       {viewingInvoice && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-gray-800 rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-white">Invoice Preview</h2>
-              <button
-                onClick={() => setViewingInvoice(null)}
-                className="text-gray-400 hover:text-white transition-colors"
-              >
-                ✕
-              </button>
-            </div>
-            
-            <div className="bg-white text-black p-8 rounded-lg">
-              <div className="flex justify-between items-start mb-8">
-                <div>
-                  <h1 className="text-3xl font-bold text-blue-600">INVOICE</h1>
-                  <p className="text-lg">{viewingInvoice.number}</p>
-                </div>
-                <div className="text-right">
-                  <h2 className="text-xl font-bold">AccounTech Pro</h2>
-                  <p>123 Business Street</p>
-                  <p>New York, NY 10001</p>
-                  <p>contact@accountech.com</p>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-8 mb-8">
-                <div>
-                  <h3 className="font-bold mb-2">Bill To:</h3>
-                  <p className="font-semibold">{getCustomerName(viewingInvoice.customerId)}</p>
-                  <p>Customer Address</p>
-                  <p>City, State ZIP</p>
-                </div>
-                <div className="text-right">
-                  <p><strong>Invoice Date:</strong> {viewingInvoice.date.toLocaleDateString()}</p>
-                  <p><strong>Due Date:</strong> {viewingInvoice.dueDate.toLocaleDateString()}</p>
-                  <p><strong>Status:</strong> {viewingInvoice.status}</p>
-                </div>
-              </div>
-              
-              <table className="w-full mb-8">
-                <thead>
-                  <tr className="bg-gray-100">
-                    <th className="text-left p-3 border">Description</th>
-                    <th className="text-right p-3 border">Quantity</th>
-                    <th className="text-right p-3 border">Rate</th>
-                    <th className="text-right p-3 border">Amount</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {viewingInvoice.items.map((item) => (
-                    <tr key={item.id}>
-                      <td className="p-3 border">{item.description}</td>
-                      <td className="p-3 border text-right">{item.quantity}</td>
-                      <td className="p-3 border text-right">${item.rate}</td>
-                      <td className="p-3 border text-right">${item.amount.toLocaleString()}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              
-              <div className="text-right">
-                <p className="text-2xl font-bold">Total: ${viewingInvoice.amount.toLocaleString()}</p>
-              </div>
-            </div>
-          </div>
-        </div>
+        <InvoiceView
+          invoice={viewingInvoice}
+          customer={customers.find(c => c.id === viewingInvoice.customerId)!}
+          onClose={() => setViewingInvoice(null)}
+          onEdit={() => handleEditInvoice(viewingInvoice)}
+          onSend={() => handleSendInvoiceFromView(viewingInvoice)}
+          onDownload={() => handleDownloadInvoice(viewingInvoice)}
+        />
+      )}
+
+      {/* Invoice Form Modal */}
+      {showAddForm && (
+        <InvoiceForm
+          onClose={() => setShowAddForm(false)}
+          onSubmit={handleCreateInvoice}
+        />
+      )}
+
+      {/* Edit Invoice Form Modal */}
+      {editingInvoice && (
+        <InvoiceForm
+          onClose={() => setEditingInvoice(null)}
+          onSubmit={handleUpdateInvoice}
+          editingInvoice={editingInvoice}
+        />
       )}
     </div>
   );
