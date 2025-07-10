@@ -24,13 +24,15 @@ const InvoiceView: React.FC<InvoiceViewProps> = ({
   };
 
   const subtotal = invoice.items.reduce((sum, item) => sum + item.amount, 0);
-  const taxRate = 0.1; // 10% tax
-  const taxAmount = subtotal * taxRate;
-  const total = subtotal + taxAmount;
+  const discount = 12.38; // As per your example
+  const subTotalAfterDiscount = subtotal - discount;
+  const vatRate = 0.05; // 5% VAT
+  const vatAmount = subTotalAfterDiscount * vatRate;
+  const netTotal = subTotalAfterDiscount + vatAmount;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-2xl max-w-4xl w-full max-h-[95vh] overflow-hidden">
+      <div className="bg-white rounded-lg shadow-2xl max-w-5xl w-full max-h-[95vh] overflow-hidden">
         {/* Header Actions */}
         <div className="bg-gray-50 px-6 py-4 border-b border-gray-200 flex items-center justify-between print:hidden">
           <h2 className="text-xl font-semibold text-gray-800">Invoice Preview</h2>
@@ -80,192 +82,272 @@ const InvoiceView: React.FC<InvoiceViewProps> = ({
 
         {/* Invoice Content */}
         <div className="overflow-y-auto max-h-[calc(95vh-80px)]">
-          <div className="p-8 bg-white text-gray-800" id="invoice-content">
-            {/* Invoice Header */}
-            <div className="flex justify-between items-start mb-8">
+          <div className="p-6 bg-white text-gray-800 text-sm" id="invoice-content">
+            {/* Header */}
+            <div className="text-center mb-6 border-b-2 border-gray-800 pb-4">
+              <h1 className="text-2xl font-bold text-gray-800 mb-2">
+                TAX INVOICE <span className="text-lg">ف ا ت و ر ة ض ر ي ب ي ة</span>
+              </h1>
+            </div>
+
+            {/* Company Info and Invoice Details */}
+            <div className="grid grid-cols-2 gap-8 mb-6">
+              {/* Left Side - Company Info */}
               <div>
-                <h1 className="text-4xl font-bold text-blue-600 mb-2">INVOICE</h1>
-                <div className="text-gray-600">
-                  <p className="text-lg font-semibold">{invoice.number}</p>
-                  <p className="text-sm">Date: {invoice.date.toLocaleDateString()}</p>
-                  <p className="text-sm">Due: {invoice.dueDate.toLocaleDateString()}</p>
-                </div>
-              </div>
-              
-              <div className="text-right">
                 <div className="mb-4">
-                  <h2 className="text-2xl font-bold text-gray-800">AccounTech Pro</h2>
-                  <p className="text-gray-600">Professional Accounting Solutions</p>
+                  <h2 className="text-xl font-bold text-blue-600 mb-2">ASTER AUTO GARAGE</h2>
+                  <div className="text-sm space-y-1">
+                    <p><strong>TRN:</strong> 100502938200003</p>
+                    <p><strong>Tel. No:</strong> +971 04-3233093</p>
+                    <p><strong>Mob. No:</strong> +971 568990063</p>
+                    <p><strong>Address:</strong> UMMSUQUIEM ROAD, AL QUOZ INDUSTRIAL AREA 3, DUBAI, UAE</p>
+                    <p><strong>Email:</strong> sales@asterautogarage.com</p>
+                    <p><strong>Website:</strong> www.astergarage.ae</p>
+                  </div>
                 </div>
-                <div className="text-sm text-gray-600">
-                  <p>123 Business Avenue</p>
-                  <p>Suite 100</p>
-                  <p>New York, NY 10001</p>
-                  <p>Phone: (555) 123-4567</p>
-                  <p>Email: billing@accountech.com</p>
-                  <p>Tax ID: 12-3456789</p>
+              </div>
+
+              {/* Right Side - Invoice Details */}
+              <div>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p><strong>Inv. No:</strong> {invoice.number}</p>
+                    <p><strong>Inv. Date:</strong> {invoice.date.toLocaleDateString()}</p>
+                    <p><strong>LPO. Date:</strong> --</p>
+                    <p><strong>Job No.:</strong> 25190</p>
+                  </div>
+                  <div>
+                    <p><strong>Cust. TRN:</strong> --</p>
+                    <p><strong>Next KM:</strong> 0</p>
+                    <p><strong>Chasis No:</strong> --</p>
+                    <p><strong>Claim No:</strong> --</p>
+                    <p><strong>Ref. No:</strong> --</p>
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Status Badge */}
-            <div className="mb-8">
-              <span className={`inline-block px-4 py-2 rounded-full text-sm font-semibold ${
-                invoice.status === 'Paid' ? 'bg-green-100 text-green-800' :
-                invoice.status === 'Sent' ? 'bg-blue-100 text-blue-800' :
-                invoice.status === 'Overdue' ? 'bg-red-100 text-red-800' :
-                'bg-gray-100 text-gray-800'
-              }`}>
-                {invoice.status.toUpperCase()}
-              </span>
-            </div>
-
-            {/* Bill To Section */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+            {/* Customer and Vehicle Info */}
+            <div className="grid grid-cols-2 gap-8 mb-6 border border-gray-300 p-4">
+              {/* Invoice To */}
               <div>
-                <h3 className="text-lg font-semibold text-gray-800 mb-3 border-b-2 border-blue-600 pb-1">
-                  Bill To:
-                </h3>
-                <div className="text-gray-700">
-                  <p className="font-semibold text-lg">{customer.name}</p>
-                  <p className="font-medium text-blue-600">{customer.company}</p>
-                  <p className="mt-2 whitespace-pre-line">{customer.address}</p>
-                  <p className="mt-2">
-                    <span className="font-medium">Email:</span> {customer.email}
-                  </p>
-                  <p>
-                    <span className="font-medium">Phone:</span> {customer.phone}
-                  </p>
+                <h3 className="font-bold mb-2">Invoice To:</h3>
+                <div className="text-sm space-y-1">
+                  <p><strong>Name:</strong> {customer.name}</p>
+                  <p><strong>Company:</strong> {customer.company}</p>
+                  <p><strong>Address:</strong> {customer.address}</p>
+                  <p><strong>Email:</strong> {customer.email}</p>
+                  <p><strong>Phone:</strong> {customer.phone}</p>
                 </div>
               </div>
-              
+
+              {/* Vehicle Details */}
               <div>
-                <h3 className="text-lg font-semibold text-gray-800 mb-3 border-b-2 border-blue-600 pb-1">
-                  Invoice Details:
-                </h3>
-                <div className="text-gray-700 space-y-2">
-                  <div className="flex justify-between">
-                    <span className="font-medium">Invoice Number:</span>
-                    <span>{invoice.number}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="font-medium">Issue Date:</span>
-                    <span>{invoice.date.toLocaleDateString()}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="font-medium">Due Date:</span>
-                    <span className="text-red-600 font-semibold">{invoice.dueDate.toLocaleDateString()}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="font-medium">Payment Terms:</span>
-                    <span>Net 30</span>
-                  </div>
+                <h3 className="font-bold mb-2">Vehicle Details:</h3>
+                <div className="text-sm space-y-1">
+                  <p><strong>Vehicle Make:</strong> BMW/840I/0</p>
+                  <p><strong>Vehicle No:</strong> M 16969/DXB</p>
+                  <p><strong>Kilometers:</strong> 12920</p>
                 </div>
               </div>
             </div>
 
             {/* Items Table */}
-            <div className="mb-8">
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse">
-                  <thead>
-                    <tr className="bg-blue-50">
-                      <th className="border border-gray-300 px-4 py-3 text-left font-semibold text-gray-800">
-                        Description
-                      </th>
-                      <th className="border border-gray-300 px-4 py-3 text-center font-semibold text-gray-800 w-20">
-                        Qty
-                      </th>
-                      <th className="border border-gray-300 px-4 py-3 text-right font-semibold text-gray-800 w-24">
-                        Rate
-                      </th>
-                      <th className="border border-gray-300 px-4 py-3 text-right font-semibold text-gray-800 w-28">
-                        Amount
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {invoice.items.map((item, index) => (
-                      <tr key={item.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                        <td className="border border-gray-300 px-4 py-3 text-gray-700">
-                          <div className="font-medium">{item.description}</div>
-                        </td>
-                        <td className="border border-gray-300 px-4 py-3 text-center text-gray-700">
-                          {item.quantity}
-                        </td>
-                        <td className="border border-gray-300 px-4 py-3 text-right text-gray-700">
-                          ${item.rate.toFixed(2)}
-                        </td>
-                        <td className="border border-gray-300 px-4 py-3 text-right font-semibold text-gray-800">
-                          ${item.amount.toFixed(2)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+            <div className="mb-6">
+              <table className="w-full border-collapse border border-gray-400 text-xs">
+                <thead>
+                  <tr className="bg-gray-100">
+                    <th className="border border-gray-400 px-2 py-2 text-left">Total Qty</th>
+                    <th className="border border-gray-400 px-2 py-2 text-left">Parts Description</th>
+                    <th className="border border-gray-400 px-2 py-2 text-left">Labour</th>
+                    <th className="border border-gray-400 px-2 py-2 text-right">Unit Price</th>
+                    <th className="border border-gray-400 px-2 py-2 text-right">Tax Amount</th>
+                    <th className="border border-gray-400 px-2 py-2 text-center">VAT %</th>
+                    <th className="border border-gray-400 px-2 py-2 text-right">After VAT Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td className="border border-gray-400 px-2 py-2">2</td>
+                    <td className="border border-gray-400 px-2 py-2">PIRELLI 245/35R20 95Y PZERO PZ4 RFT* 0925*2</td>
+                    <td className="border border-gray-400 px-2 py-2">0.00</td>
+                    <td className="border border-gray-400 px-2 py-2 text-right">1180.00</td>
+                    <td className="border border-gray-400 px-2 py-2 text-right">2360.00</td>
+                    <td className="border border-gray-400 px-2 py-2 text-center">5%</td>
+                    <td className="border border-gray-400 px-2 py-2 text-right">2477.76</td>
+                  </tr>
+                  <tr>
+                    <td className="border border-gray-400 px-2 py-2">2</td>
+                    <td className="border border-gray-400 px-2 py-2">PIRELLI 275/30R20 97Y PZERO PZ4 RFT* 1325*2</td>
+                    <td className="border border-gray-400 px-2 py-2">0.00</td>
+                    <td className="border border-gray-400 px-2 py-2 text-right">1350.00</td>
+                    <td className="border border-gray-400 px-2 py-2 text-right">2700.00</td>
+                    <td className="border border-gray-400 px-2 py-2 text-center">5%</td>
+                    <td className="border border-gray-400 px-2 py-2 text-right">2834.72</td>
+                  </tr>
+                  <tr>
+                    <td className="border border-gray-400 px-2 py-2">1</td>
+                    <td className="border border-gray-400 px-2 py-2">FRONT & REAR WHEEL ALIGNMENT</td>
+                    <td className="border border-gray-400 px-2 py-2">200.00</td>
+                    <td className="border border-gray-400 px-2 py-2 text-right">200.00</td>
+                    <td className="border border-gray-400 px-2 py-2 text-right">200.00</td>
+                    <td className="border border-gray-400 px-2 py-2 text-center">5%</td>
+                    <td className="border border-gray-400 px-2 py-2 text-right">209.98</td>
+                  </tr>
+                  <tr>
+                    <td className="border border-gray-400 px-2 py-2">2</td>
+                    <td className="border border-gray-400 px-2 py-2">RIM REPAIR</td>
+                    <td className="border border-gray-400 px-2 py-2">0.00</td>
+                    <td className="border border-gray-400 px-2 py-2 text-right">400.00</td>
+                    <td className="border border-gray-400 px-2 py-2 text-right">800.00</td>
+                    <td className="border border-gray-400 px-2 py-2 text-center">5%</td>
+                    <td className="border border-gray-400 px-2 py-2 text-right">839.92</td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
 
-            {/* Totals Section */}
-            <div className="flex justify-end mb-8">
-              <div className="w-full max-w-sm">
-                <div className="bg-gray-50 p-6 rounded-lg border">
-                  <div className="space-y-3">
-                    <div className="flex justify-between text-gray-700">
-                      <span>Subtotal:</span>
-                      <span className="font-medium">${subtotal.toFixed(2)}</span>
+            {/* Totals and Payment */}
+            <div className="grid grid-cols-2 gap-8 mb-6">
+              {/* Left Side - Totals */}
+              <div>
+                <div className="border border-gray-400 p-4">
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span>TOTAL:</span>
+                      <span className="font-bold">6060.00</span>
                     </div>
-                    <div className="flex justify-between text-gray-700">
-                      <span>Tax (10%):</span>
-                      <span className="font-medium">${taxAmount.toFixed(2)}</span>
+                    <div className="flex justify-between">
+                      <span>Labour Charge:</span>
+                      <span>0.00</span>
                     </div>
-                    <div className="border-t border-gray-300 pt-3">
-                      <div className="flex justify-between text-lg font-bold text-gray-800">
-                        <span>Total:</span>
-                        <span className="text-blue-600">${total.toFixed(2)}</span>
-                      </div>
+                    <div className="flex justify-between">
+                      <span>Spare Parts:</span>
+                      <span>6060.00</span>
                     </div>
+                    <div className="flex justify-between">
+                      <span>DISCOUNT:</span>
+                      <span>12.38</span>
+                    </div>
+                    <div className="flex justify-between border-t pt-2">
+                      <span>SUB TOTAL:</span>
+                      <span className="font-bold">6047.62</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>VAT (5%):</span>
+                      <span>302.38</span>
+                    </div>
+                    <div className="flex justify-between border-t pt-2">
+                      <span className="font-bold">NET TOTAL:</span>
+                      <span className="font-bold">6350.00</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>CREDIT BALANCE:</span>
+                      <span>0.00</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Side - Payment Details */}
+              <div>
+                <div className="border border-gray-400 p-4 mb-4">
+                  <h4 className="font-bold mb-2">Payment Details:</h4>
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="bg-gray-100">
+                        <th className="border border-gray-300 px-2 py-1">Receipt No</th>
+                        <th className="border border-gray-300 px-2 py-1">Pay Method</th>
+                        <th className="border border-gray-300 px-2 py-1">Amount</th>
+                        <th className="border border-gray-300 px-2 py-1">Payment Date</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td className="border border-gray-300 px-2 py-1">12163</td>
+                        <td className="border border-gray-300 px-2 py-1">Credit Card</td>
+                        <td className="border border-gray-300 px-2 py-1">6350.00</td>
+                        <td className="border border-gray-300 px-2 py-1">06-07-2025 18:04:33</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="border border-gray-400 p-4">
+                  <h4 className="font-bold mb-2">Bank Details:</h4>
+                  <div className="text-xs space-y-1">
+                    <p><strong>Bank:</strong> EMIRATES ISLAMIC BANK</p>
+                    <p><strong>Account Name:</strong> ASTER AUTO GARAGE</p>
+                    <p><strong>A/C No:</strong> 3708440789901</p>
+                    <p><strong>IBAN:</strong> AE510340003708440789901</p>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Payment Information */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-800 mb-3 border-b-2 border-blue-600 pb-1">
-                  Payment Information:
-                </h3>
-                <div className="text-sm text-gray-700 space-y-2">
-                  <p><span className="font-medium">Bank:</span> First National Bank</p>
-                  <p><span className="font-medium">Account Name:</span> AccounTech Pro LLC</p>
-                  <p><span className="font-medium">Account Number:</span> 1234567890</p>
-                  <p><span className="font-medium">Routing Number:</span> 021000021</p>
-                  <p><span className="font-medium">Swift Code:</span> FNBKUS33</p>
+            {/* Remarks */}
+            <div className="mb-6">
+              <div className="border border-gray-400 p-4">
+                <h4 className="font-bold mb-2">Remarks:</h4>
+                <p className="text-xs">Service completed as per customer requirements.</p>
+              </div>
+            </div>
+
+            {/* Terms & Conditions */}
+            <div className="mb-6">
+              <h4 className="font-bold mb-2">Terms & Conditions:</h4>
+              <div className="text-xs space-y-1">
+                <p>1. All tyres & Batteries warranty against manufacturing defects by Agency only. (Please Bring Original Invoice for warranty claim)</p>
+                <p>2. There is no warranty for any spare parts Items.</p>
+                <p>3. While leaving the vehicle in our garage for service, kindly remove all your important & valuable items from your vehicle. Therefore if any claim the company is not responsible.</p>
+                <p>4. After Completion of work, we request Customer to collect the Vehicle within 2 days. Otherwise company is not responsible for any damages or claim and also when you receive back the vehicle. Please check properly and confirm everything is ok. If any problem kindly notify Immediately otherwise company is not responsible for any claim further.</p>
+              </div>
+            </div>
+
+            {/* Service Recommendations */}
+            <div className="mb-6">
+              <div className="grid grid-cols-2 gap-4 text-xs">
+                <div>
+                  <h4 className="font-bold mb-2">Wheel Alignment should be done:</h4>
+                  <ul className="space-y-1">
+                    <li>1. After every 20,000 km</li>
+                    <li>2. After any suspension parts changing</li>
+                    <li>3. After changing tyres or using different size of tyres</li>
+                    <li>4. After hitting footpath korb, Block or any similar things</li>
+                  </ul>
+                </div>
+                <div>
+                  <h4 className="font-bold mb-2">Tyre Balancing and Rotation should be done:</h4>
+                  <p>All cars every 10,000 km</p>
                 </div>
               </div>
-              
-              <div>
-                <h3 className="text-lg font-semibold text-gray-800 mb-3 border-b-2 border-blue-600 pb-1">
-                  Terms & Conditions:
-                </h3>
-                <div className="text-sm text-gray-700 space-y-1">
-                  <p>• Payment is due within 30 days of invoice date</p>
-                  <p>• Late payments may incur a 1.5% monthly service charge</p>
-                  <p>• All disputes must be reported within 10 days</p>
-                  <p>• Services may be suspended for overdue accounts</p>
+            </div>
+
+            {/* Signatures */}
+            <div className="grid grid-cols-2 gap-8 mt-8">
+              <div className="text-center">
+                <div className="border-t border-gray-400 pt-2 mt-8">
+                  <p className="text-sm font-bold">Customer Sign</p>
+                </div>
+              </div>
+              <div className="text-center">
+                <div className="border-t border-gray-400 pt-2 mt-8">
+                  <p className="text-sm font-bold">For: ASTER AUTO GARAGE</p>
                 </div>
               </div>
             </div>
 
             {/* Footer */}
-            <div className="border-t border-gray-300 pt-6 text-center">
-              <p className="text-gray-600 text-sm mb-2">
-                Thank you for your business! We appreciate your prompt payment.
-              </p>
-              <p className="text-gray-500 text-xs">
-                This invoice was generated electronically and is valid without signature.
-              </p>
+            <div className="mt-6 text-xs text-gray-600">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p><strong>Created By:</strong> Althaf</p>
+                  <p><strong>Modified By:</strong> Althaf</p>
+                </div>
+                <div className="text-right">
+                  <p>Generated on: {new Date().toLocaleString()}</p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
