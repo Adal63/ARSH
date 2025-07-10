@@ -90,46 +90,45 @@ const InvoiceView: React.FC<InvoiceViewProps> = ({
               </h1>
             </div>
 
+            {/* Company Logo - Centered and Prominent */}
+            <div className="text-center mb-8">
+              <img 
+                src="/src/assets/Picture2.jpg" 
+                alt="Aster Auto Garage Logo" 
+                className="mx-auto h-auto"
+                style={{ width: '80%', maxWidth: '600px', height: 'auto' }}
+              />
+            </div>
+
             {/* Company Info and Invoice Details */}
-            <div className="grid grid-cols-2 gap-8 mb-6">
+            <div className="grid grid-cols-3 gap-6 mb-6">
               {/* Left Side - Company Info */}
               <div>
-                {/* Company Logo and Header */}
-                <div className="mb-6">
-                  <div className="mb-4">
-                    <img 
-                      src="/src/assets/Picture2.jpg" 
-                      alt="Aster Auto Garage Logo" 
-                      className="w-full max-w-md mx-auto h-auto"
-                      style={{ maxHeight: '120px', objectFit: 'contain' }}
-                    />
-                  </div>
-                </div>
-                <div className="mb-4">
-                  <div className="text-sm space-y-1">
-                    <p><strong>TRN:</strong> 100502938200003</p>
-                    <p><strong>Address:</strong> UMMSUQUIEM ROAD, AL QUOZ INDUSTRIAL AREA 3, DUBAI, UAE</p>
-                    <p><strong>Website:</strong> www.astergarage.ae</p>
-                  </div>
+                <div className="text-sm space-y-1">
+                  <p><strong>TRN:</strong> 100502938200003</p>
+                  <p><strong>Address:</strong> UMMSUQUIEM ROAD, AL QUOZ INDUSTRIAL AREA 3, DUBAI, UAE</p>
+                  <p><strong>Website:</strong> www.astergarage.ae</p>
                 </div>
               </div>
 
-              {/* Right Side - Invoice Details */}
+              {/* Center - Invoice Details */}
               <div>
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <p><strong>Inv. No:</strong> {invoice.number}</p>
-                    <p><strong>Inv. Date:</strong> {invoice.date.toLocaleDateString()}</p>
-                    <p><strong>LPO. Date:</strong> --</p>
-                    <p><strong>Job No.:</strong> 25190</p>
-                  </div>
-                  <div>
-                    <p><strong>Cust. TRN:</strong> --</p>
-                    <p><strong>Next KM:</strong> 0</p>
-                    <p><strong>Chasis No:</strong> --</p>
-                    <p><strong>Claim No:</strong> --</p>
-                    <p><strong>Ref. No:</strong> --</p>
-                  </div>
+                <div className="text-sm space-y-1">
+                  <p><strong>Inv. No:</strong> {invoice.number}</p>
+                  <p><strong>Inv. Date:</strong> {invoice.date.toLocaleDateString()}</p>
+                  <p><strong>LPO. Date:</strong> --</p>
+                  <p><strong>Job No.:</strong> 25190</p>
+                </div>
+              </div>
+
+              {/* Right Side - Additional Details */}
+              <div>
+                <div className="text-sm space-y-1">
+                  <p><strong>Cust. TRN:</strong> --</p>
+                  <p><strong>Next KM:</strong> 0</p>
+                  <p><strong>Chasis No:</strong> --</p>
+                  <p><strong>Claim No:</strong> --</p>
+                  <p><strong>Ref. No:</strong> --</p>
                 </div>
               </div>
             </div>
