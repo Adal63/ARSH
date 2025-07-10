@@ -94,28 +94,34 @@ const InvoiceView: React.FC<InvoiceViewProps> = ({
             <div className="grid grid-cols-2 gap-8 mb-6">
               {/* Left Side - Company Info */}
               <div>
-                {/* Company Logo Placeholder */}
-                <div className="mb-4 flex items-center">
-                  <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-blue-700 rounded-lg flex items-center justify-center mr-4">
-                    <div className="text-white font-bold text-lg">
-                      <div className="text-center">
-                        <div className="text-xs">ASTER</div>
-                        <div className="text-xs">AUTO</div>
-                        <div className="text-xs">GARAGE</div>
+                {/* Company Logo and Header */}
+                <div className="mb-6">
+                  <div className="bg-gradient-to-r from-blue-800 to-blue-900 rounded-lg p-4 text-white mb-4">
+                    <div className="flex items-center">
+                      <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mr-4 flex-shrink-0">
+                        <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-blue-800 rounded-full flex items-center justify-center">
+                          <svg className="w-8 h-8 text-white" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.22.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z"/>
+                          </svg>
+                        </div>
+                      </div>
+                      <div className="flex-1">
+                        <div className="text-right">
+                          <h2 className="text-2xl font-bold mb-1">كراج استر</h2>
+                          <h2 className="text-2xl font-bold mb-2">ASTER AUTO GARAGE</h2>
+                          <div className="text-sm opacity-90">
+                            <p>TEL: 04 323 3093, Mob.: 056 899 0063, 050 269 5151</p>
+                            <p>Email: sales@asterautogarage.com</p>
+                          </div>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-bold text-blue-600 mb-2">ASTER AUTO GARAGE</h2>
                   </div>
                 </div>
                 <div className="mb-4">
                   <div className="text-sm space-y-1">
                     <p><strong>TRN:</strong> 100502938200003</p>
-                    <p><strong>Tel. No:</strong> +971 04-3233093</p>
-                    <p><strong>Mob. No:</strong> +971 568990063</p>
                     <p><strong>Address:</strong> UMMSUQUIEM ROAD, AL QUOZ INDUSTRIAL AREA 3, DUBAI, UAE</p>
-                    <p><strong>Email:</strong> sales@asterautogarage.com</p>
                     <p><strong>Website:</strong> www.astergarage.ae</p>
                   </div>
                 </div>
