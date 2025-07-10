@@ -94,8 +94,22 @@ const InvoiceView: React.FC<InvoiceViewProps> = ({
             <div className="grid grid-cols-2 gap-8 mb-6">
               {/* Left Side - Company Info */}
               <div>
+                {/* Company Logo Placeholder */}
+                <div className="mb-4 flex items-center">
+                  <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-blue-700 rounded-lg flex items-center justify-center mr-4">
+                    <div className="text-white font-bold text-lg">
+                      <div className="text-center">
+                        <div className="text-xs">ASTER</div>
+                        <div className="text-xs">AUTO</div>
+                        <div className="text-xs">GARAGE</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-blue-600 mb-2">ASTER AUTO GARAGE</h2>
+                  </div>
+                </div>
                 <div className="mb-4">
-                  <h2 className="text-xl font-bold text-blue-600 mb-2">ASTER AUTO GARAGE</h2>
                   <div className="text-sm space-y-1">
                     <p><strong>TRN:</strong> 100502938200003</p>
                     <p><strong>Tel. No:</strong> +971 04-3233093</p>
