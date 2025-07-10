@@ -96,26 +96,13 @@ const InvoiceView: React.FC<InvoiceViewProps> = ({
               <div>
                 {/* Company Logo and Header */}
                 <div className="mb-6">
-                  <div className="bg-gradient-to-r from-blue-800 to-blue-900 rounded-lg p-4 text-white mb-4">
-                    <div className="flex items-center">
-                      <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mr-4 flex-shrink-0">
-                        <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-blue-800 rounded-full flex items-center justify-center">
-                          <svg className="w-8 h-8 text-white" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.22.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z"/>
-                          </svg>
-                        </div>
-                      </div>
-                      <div className="flex-1">
-                        <div className="text-right">
-                          <h2 className="text-2xl font-bold mb-1">كراج استر</h2>
-                          <h2 className="text-2xl font-bold mb-2">ASTER AUTO GARAGE</h2>
-                          <div className="text-sm opacity-90">
-                            <p>TEL: 04 323 3093, Mob.: 056 899 0063, 050 269 5151</p>
-                            <p>Email: sales@asterautogarage.com</p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+                  <div className="mb-4">
+                    <img 
+                      src="/src/assets/Picture2.jpg" 
+                      alt="Aster Auto Garage Logo" 
+                      className="w-full max-w-md mx-auto h-auto"
+                      style={{ maxHeight: '120px', objectFit: 'contain' }}
+                    />
                   </div>
                 </div>
                 <div className="mb-4">
