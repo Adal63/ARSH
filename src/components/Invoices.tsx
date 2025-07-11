@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAccounting } from '../hooks/useAccounting';
-import { Plus, Edit2, Eye, Send, Search, Filter } from 'lucide-react';
+import { Plus, Edit2, Eye, Send, Search, Filter, Settings, X, ChevronUp, ChevronDown } from 'lucide-react';
 import { Invoice } from '../types';
 import InvoiceView from './InvoiceView';
 import InvoiceForm from './InvoiceForm';
@@ -12,6 +12,57 @@ const Invoices: React.FC = () => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [viewingInvoice, setViewingInvoice] = useState<Invoice | null>(null);
   const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
+  const [showColumnSettings, setShowColumnSettings] = useState(false);
+
+  // All available columns with their properties
+  const allColumns = [
+    { key: 'issueDate', label: 'Issue Date', defaultVisible: true },
+    { key: 'reference', label: 'Reference', defaultVisible: true },
+    { key: 'dueDate', label: 'Due Date', defaultVisible: true },
+    { key: 'mjNo', label: 'MJ No', defaultVisible: false },
+    { key: 'customer', label: 'Customer', defaultVisible: true },
+    { key: 'salesOrder', label: 'Sales Order', defaultVisible: false },
+    { key: 'salesQuote', label: 'Sales Quote', defaultVisible: false },
+    { key: 'description', label: 'Description', defaultVisible: false },
+    { key: 'project', label: 'Project', defaultVisible: false },
+    { key: 'division', label: 'Division', defaultVisible: false },
+    { key: 'closedInvoice', label: 'Closed Invoice', defaultVisible: false },
+    { key: 'withholdingTax', label: 'Withholding Tax', defaultVisible: false },
+    { key: 'discount', label: 'Discount', defaultVisible: false },
+    { key: 'invoiceAmount', label: 'Invoice Amount', defaultVisible: true },
+    { key: 'balanceDue', label: 'Balance Due', defaultVisible: false },
+    { key: 'daysToDueDate', label: 'Days to Due Date', defaultVisible: false },
+    { key: 'daysOverdue', label: 'Days Overdue', defaultVisible: false },
+    { key: 'status', label: 'Status', defaultVisible: true },
+    { key: 'timestamp', label: 'Timestamp', defaultVisible: false },
+    { key: 'chasisNo', label: 'Chassis No', defaultVisible: false },
+    { key: 'vehicleNo', label: 'Vehicle No', defaultVisible: false },
+    { key: 'carModel', label: 'Car Model', defaultVisible: false },
+    { key: 'serviceKms', label: 'Service KMS', defaultVisible: false },
+    { key: 'termsConditions', label: 'Terms & Conditions', defaultVisible: false },
+    { key: 'costOfSales', label: 'Cost of Sales', defaultVisible: false },
+    { key: 'approvedBy', label: 'Approved By', defaultVisible: false },
+    { key: 'createdBy', label: 'Created By', defaultVisible: false },
+    { key: 'creditBy', label: 'Credit By', defaultVisible: false }
+  ];
+
+  // Initialize visible columns from localStorage or defaults
+  const [visibleColumns, setVisibleColumns] = useState(() => {
+    const saved = localStorage.getItem('invoiceVisibleColumns');
+    if (saved) {
+      return JSON.parse(saved);
+    }
+    return allColumns.filter(col => col.defaultVisible).map(col => col.key);
+  });
+
+  // Initialize column order from localStorage or defaults
+  const [columnOrder, setColumnOrder] = useState(() => {
+    const saved = localStorage.getItem('invoiceColumnOrder');
+    if (saved) {
+      return JSON.parse(saved);
+    }
+    return allColumns.filter(col => col.defaultVisible).map(col => col.key);
+  });
 
   const filteredInvoices = invoices.filter(invoice => {
     const customer = customers.find(c => c.id === invoice.customerId);
@@ -71,17 +122,142 @@ const Invoices: React.FC = () => {
     }
   };
 
+  // Save column preferences to localStorage
+  const saveColumnPreferences = () => {
+    localStorage.setItem('invoiceVisibleColumns', JSON.stringify(visibleColumns));
+    localStorage.setItem('invoiceColumnOrder', JSON.stringify(columnOrder));
+  };
+
+  // Toggle column visibility
+  const toggleColumnVisibility = (columnKey: string) => {
+    const newVisibleColumns = visibleColumns.includes(columnKey)
+      ? visibleColumns.filter(key => key !== columnKey)
+      : [...visibleColumns, columnKey];
+    
+    setVisibleColumns(newVisibleColumns);
+    
+    // Update column order to include/exclude the toggled column
+    if (newVisibleColumns.includes(columnKey) && !columnOrder.includes(columnKey)) {
+      setColumnOrder([...columnOrder, columnKey]);
+    }
+  };
+
+  // Move column up in order
+  const moveColumnUp = (columnKey: string) => {
+    const currentIndex = columnOrder.indexOf(columnKey);
+    if (currentIndex > 0) {
+      const newOrder = [...columnOrder];
+      [newOrder[currentIndex - 1], newOrder[currentIndex]] = [newOrder[currentIndex], newOrder[currentIndex - 1]];
+      setColumnOrder(newOrder);
+    }
+  };
+
+  // Move column down in order
+  const moveColumnDown = (columnKey: string) => {
+    const currentIndex = columnOrder.indexOf(columnKey);
+    if (currentIndex < columnOrder.length - 1) {
+      const newOrder = [...columnOrder];
+      [newOrder[currentIndex], newOrder[currentIndex + 1]] = [newOrder[currentIndex + 1], newOrder[currentIndex]];
+      setColumnOrder(newOrder);
+    }
+  };
+
+  // Get column label
+  const getColumnLabel = (key: string) => {
+    return allColumns.find(col => col.key === key)?.label || key;
+  };
+
+  // Get cell value for a column
+  const getCellValue = (invoice: Invoice, columnKey: string) => {
+    const customer = customers.find(c => c.id === invoice.customerId);
+    const daysToDue = Math.ceil((invoice.dueDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+    const daysOverdue = daysToDue < 0 ? Math.abs(daysToDue) : 0;
+    
+    switch (columnKey) {
+      case 'issueDate':
+        return invoice.date.toLocaleDateString();
+      case 'reference':
+        return invoice.number;
+      case 'dueDate':
+        return invoice.dueDate.toLocaleDateString();
+      case 'mjNo':
+        return 'MJ-' + invoice.id.slice(-4);
+      case 'customer':
+        return customer?.name || 'Unknown';
+      case 'salesOrder':
+        return 'SO-' + invoice.id.slice(-4);
+      case 'salesQuote':
+        return 'SQ-' + invoice.id.slice(-4);
+      case 'description':
+        return invoice.items[0]?.description || 'Service Invoice';
+      case 'project':
+        return 'Project-' + invoice.id.slice(-3);
+      case 'division':
+        return 'Auto Service';
+      case 'closedInvoice':
+        return invoice.status === 'Paid' ? 'Yes' : 'No';
+      case 'withholdingTax':
+        return '$0.00';
+      case 'discount':
+        return '$12.38';
+      case 'invoiceAmount':
+        return '$' + invoice.amount.toLocaleString();
+      case 'balanceDue':
+        return invoice.status === 'Paid' ? '$0.00' : '$' + invoice.amount.toLocaleString();
+      case 'daysToDueDate':
+        return daysToDue > 0 ? daysToDue.toString() : '0';
+      case 'daysOverdue':
+        return daysOverdue.toString();
+      case 'status':
+        return invoice.status;
+      case 'timestamp':
+        return invoice.created.toLocaleString();
+      case 'chasisNo':
+        return 'CH-' + invoice.id.slice(-6);
+      case 'vehicleNo':
+        return 'M 16969/DXB';
+      case 'carModel':
+        return 'BMW/840I/0';
+      case 'serviceKms':
+        return '12920';
+      case 'termsConditions':
+        return 'Standard Terms';
+      case 'costOfSales':
+        return '$' + (invoice.amount * 0.7).toLocaleString();
+      case 'approvedBy':
+        return 'Manager';
+      case 'createdBy':
+        return 'Althaf';
+      case 'creditBy':
+        return 'Finance Team';
+      default:
+        return '';
+    }
+  };
+
+  // Get ordered visible columns
+  const orderedVisibleColumns = columnOrder.filter(key => visibleColumns.includes(key));
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold text-white">Invoices</h1>
-        <button
-          onClick={() => setShowAddForm(true)}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center transition-colors"
-        >
-          <Plus className="w-5 h-5 mr-2" />
-          Create Invoice
-        </button>
+        <div className="flex space-x-3">
+          <button
+            onClick={() => setShowColumnSettings(true)}
+            className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg flex items-center transition-colors"
+          >
+            <Settings className="w-5 h-5 mr-2" />
+            Columns
+          </button>
+          <button
+            onClick={() => setShowAddForm(true)}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center transition-colors"
+          >
+            <Plus className="w-5 h-5 mr-2" />
+            Create Invoice
+          </button>
+        </div>
       </div>
 
       {/* Search and Filter */}
@@ -160,24 +336,11 @@ const Invoices: React.FC = () => {
           <table className="w-full">
             <thead className="bg-gray-700">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                  Invoice #
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                  Customer
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                  Date
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                  Due Date
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                  Amount
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                  Status
-                </th>
+                {orderedVisibleColumns.map(columnKey => (
+                  <th key={columnKey} className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                    {getColumnLabel(columnKey)}
+                  </th>
+                ))}
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
                   Actions
                 </th>
@@ -186,26 +349,19 @@ const Invoices: React.FC = () => {
             <tbody className="divide-y divide-gray-700">
               {filteredInvoices.map((invoice) => (
                 <tr key={invoice.id} className="hover:bg-gray-700/50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-white">
-                    {invoice.number}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-                    {getCustomerName(invoice.customerId)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-                    {invoice.date.toLocaleDateString()}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-                    {invoice.dueDate.toLocaleDateString()}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-white font-medium">
-                    ${invoice.amount.toLocaleString()}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    <span className={`px-2 py-1 text-xs rounded-full ${getStatusColor(invoice.status)}`}>
-                      {invoice.status}
-                    </span>
-                  </td>
+                  {orderedVisibleColumns.map(columnKey => (
+                    <td key={columnKey} className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                      {columnKey === 'status' ? (
+                        <span className={`px-2 py-1 text-xs rounded-full ${getStatusColor(invoice.status)}`}>
+                          {getCellValue(invoice, columnKey)}
+                        </span>
+                      ) : (
+                        <span className={columnKey === 'invoiceAmount' || columnKey === 'balanceDue' ? 'text-white font-medium' : ''}>
+                          {getCellValue(invoice, columnKey)}
+                        </span>
+                      )}
+                    </td>
+                  ))}
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
                     <div className="flex space-x-2">
                       <button
@@ -248,6 +404,96 @@ const Invoices: React.FC = () => {
           </table>
         </div>
       </div>
+
+      {/* Column Settings Modal */}
+      {showColumnSettings && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 rounded-lg max-w-2xl w-full max-h-[80vh] overflow-hidden">
+            <div className="flex items-center justify-between p-6 border-b border-gray-700">
+              <h2 className="text-xl font-bold text-white">Customize Columns</h2>
+              <button
+                onClick={() => {
+                  setShowColumnSettings(false);
+                  saveColumnPreferences();
+                }}
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto max-h-[60vh]">
+              <div className="space-y-4">
+                <div className="mb-4">
+                  <h3 className="text-lg font-semibold text-white mb-2">Select Columns to Display</h3>
+                  <p className="text-gray-400 text-sm">Choose which columns you want to see in the invoice table</p>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {allColumns.map(column => (
+                    <div key={column.key} className="flex items-center justify-between p-3 bg-gray-700 rounded-lg">
+                      <div className="flex items-center">
+                        <input
+                          type="checkbox"
+                          id={column.key}
+                          checked={visibleColumns.includes(column.key)}
+                          onChange={() => toggleColumnVisibility(column.key)}
+                          className="w-4 h-4 text-blue-600 bg-gray-600 border-gray-500 rounded focus:ring-blue-500"
+                        />
+                        <label htmlFor={column.key} className="ml-3 text-sm text-white">
+                          {column.label}
+                        </label>
+                      </div>
+                      
+                      {visibleColumns.includes(column.key) && (
+                        <div className="flex space-x-1">
+                          <button
+                            onClick={() => moveColumnUp(column.key)}
+                            className="p-1 text-gray-400 hover:text-white transition-colors"
+                            title="Move Up"
+                          >
+                            <ChevronUp className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => moveColumnDown(column.key)}
+                            className="p-1 text-gray-400 hover:text-white transition-colors"
+                            title="Move Down"
+                          >
+                            <ChevronDown className="w-4 h-4" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                
+                <div className="mt-6 pt-4 border-t border-gray-700">
+                  <h4 className="text-md font-semibold text-white mb-2">Column Order Preview</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {orderedVisibleColumns.map((columnKey, index) => (
+                      <span key={columnKey} className="px-3 py-1 bg-blue-600 text-white text-xs rounded-full">
+                        {index + 1}. {getColumnLabel(columnKey)}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="p-6 border-t border-gray-700 flex justify-end">
+              <button
+                onClick={() => {
+                  setShowColumnSettings(false);
+                  saveColumnPreferences();
+                }}
+                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+              >
+                Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Enhanced Invoice View Modal */}
       {viewingInvoice && (
