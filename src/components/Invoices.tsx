@@ -5,18 +5,6 @@ import { Invoice } from '../types';
 import InvoiceView from './InvoiceView';
 import InvoiceForm from './InvoiceForm';
 
-// Updated Invoice interface (if not already defined in types.ts)
-interface Invoice {
-  id: string;
-  number: string;
-  customerId: string;
-  date: Date;
-  dueDate: Date;
-  amount: number;
-  status: string;
-  jobNo?: string; // Optional Job No field
-}
-
 const Invoices: React.FC = () => {
   const { invoices, customers, addInvoice, updateInvoice } = useAccounting();
   const [searchTerm, setSearchTerm] = useState('');
@@ -28,8 +16,7 @@ const Invoices: React.FC = () => {
   const filteredInvoices = invoices.filter(invoice => {
     const customer = customers.find(c => c.id === invoice.customerId);
     const matchesSearch = invoice.number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         customer?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (invoice.jobNo?.toLowerCase() || '').includes(searchTerm.toLowerCase()); // Search by Job No
+                         customer?.name.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'All' || invoice.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
@@ -68,6 +55,7 @@ const Invoices: React.FC = () => {
   };
 
   const handleDownloadInvoice = (invoice: Invoice) => {
+    // Implement PDF download functionality
     console.log('Downloading invoice:', invoice.number);
   };
 
@@ -85,8 +73,87 @@ const Invoices: React.FC = () => {
 
   return (
     <div className="p-6 space-y-6">
-      {/* Existing headers and stats remain unchanged */}
-      
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold text-white">Invoices</h1>
+        <button
+          onClick={() => setShowAddForm(true)}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center transition-colors"
+        >
+          <Plus className="w-5 h-5 mr-2" />
+          Create Invoice
+        </button>
+      </div>
+
+      {/* Search and Filter */}
+      <div className="flex flex-col md:flex-row gap-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search invoices..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+        <div className="relative">
+          <Filter className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="pl-10 pr-8 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="All">All Status</option>
+            <option value="Draft">Draft</option>
+            <option value="Sent">Sent</option>
+            <option value="Paid">Paid</option>
+            <option value="Overdue">Overdue</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Invoice Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-gray-400 text-sm">Total Invoices</p>
+              <p className="text-2xl font-bold text-white">{invoices.length}</p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-gray-400 text-sm">Paid</p>
+              <p className="text-2xl font-bold text-green-400">
+                {invoices.filter(i => i.status === 'Paid').length}
+              </p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-gray-400 text-sm">Pending</p>
+              <p className="text-2xl font-bold text-blue-400">
+                {invoices.filter(i => i.status === 'Sent').length}
+              </p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-gray-400 text-sm">Total Amount</p>
+              <p className="text-2xl font-bold text-white">
+                ${invoices.reduce((sum, inv) => sum + inv.amount, 0).toLocaleString()}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Invoices Table */}
       <div className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
         <div className="overflow-x-auto">
@@ -99,9 +166,6 @@ const Invoices: React.FC = () => {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
                   Customer
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                  Job No
-                </th> {/* New Job No Header */}
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
                   Date
                 </th>
@@ -127,9 +191,6 @@ const Invoices: React.FC = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
                     {getCustomerName(invoice.customerId)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-                    {invoice.jobNo || "N/A"} {/* Display Job No */}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
                     {invoice.date.toLocaleDateString()}
