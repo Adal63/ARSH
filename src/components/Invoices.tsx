@@ -417,44 +417,12 @@ Tyre Balancing and Rotation should be done: All cars every 10,000 km`;
                       ) : columnKey === 'termsConditions' ? (
                         <div className="relative">
                           <button
-                            className="flex items-center text-blue-400 hover:text-blue-300 transition-colors"
-                            onMouseEnter={() => setShowTermsTooltip(invoice.id)}
-                            onMouseLeave={() => setShowTermsTooltip(null)}
+                            className="flex items-center text-blue-400 hover:text-blue-300 transition-colors cursor-pointer"
+                            onClick={() => setShowTermsTooltip(invoice.id)}
                           >
                             <FileText className="w-4 h-4 mr-1" />
                             View Terms
                           </button>
-                          
-                          {/* Terms & Conditions Tooltip */}
-                          {showTermsTooltip === invoice.id && (
-                            <div className="absolute z-50 left-0 top-8 w-96 bg-gray-900 border border-gray-600 rounded-lg shadow-2xl p-4">
-                              <div className="flex items-center justify-between mb-3">
-                                <h4 className="text-sm font-semibold text-white flex items-center">
-                                  <FileText className="w-4 h-4 mr-2" />
-                                  Terms & Conditions
-                                </h4>
-                                <button
-                                  onClick={() => setShowTermsTooltip(null)}
-                                  className="text-gray-400 hover:text-white"
-                                >
-                                  <X className="w-4 h-4" />
-                                </button>
-                              </div>
-                              <div className="max-h-64 overflow-y-auto text-xs text-gray-300 leading-relaxed">
-                                <pre className="whitespace-pre-wrap font-sans">
-                                  {getTermsAndConditions()}
-                                </pre>
-                              </div>
-                              <div className="mt-3 pt-3 border-t border-gray-700">
-                                <button
-                                  onClick={() => setShowTermsTooltip(null)}
-                                  className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded transition-colors"
-                                >
-                                  Close
-                                </button>
-                              </div>
-                            </div>
-                          )}
                         </div>
                       ) : (
                         <span className={columnKey === 'invoiceAmount' || columnKey === 'balanceDue' ? 'text-white font-medium' : ''}>
@@ -648,6 +616,117 @@ Tyre Balancing and Rotation should be done: All cars every 10,000 km`;
                 className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
               >
                 Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Terms & Conditions Modal */}
+      {showTermsTooltip && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowTermsTooltip(null);
+            }
+          }}
+        >
+          <div 
+            className="bg-gray-800 border border-gray-600 rounded-lg shadow-2xl max-w-4xl w-full max-h-[80vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-700 flex-shrink-0">
+              <h4 className="text-xl font-bold text-white flex items-center">
+                <FileText className="w-6 h-6 mr-3 text-blue-400" />
+                Terms & Conditions
+              </h4>
+              <button
+                onClick={() => setShowTermsTooltip(null)}
+                className="text-gray-400 hover:text-white transition-colors p-2 hover:bg-gray-700 rounded-lg"
+                title="Close Terms & Conditions"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            
+            {/* Scrollable Content */}
+            <div className="flex-1 overflow-y-auto p-6">
+              <div className="text-sm text-gray-300 leading-relaxed space-y-4">
+                <div className="bg-gray-700/50 rounded-lg p-4">
+                  <h5 className="font-semibold text-white mb-3 flex items-center">
+                    <span className="w-2 h-2 bg-red-400 rounded-full mr-2"></span>
+                    Warranty Terms
+                  </h5>
+                  <div className="space-y-2 text-sm">
+                    <p>1. All tyres & Batteries warranty against manufacturing defects by Agency only. (Please Bring Original Invoice for warranty claim)</p>
+                    <p>2. There is no warranty for any spare parts Items.</p>
+                  </div>
+                </div>
+                
+                <div className="bg-gray-700/50 rounded-lg p-4">
+                  <h5 className="font-semibold text-white mb-3 flex items-center">
+                    <span className="w-2 h-2 bg-yellow-400 rounded-full mr-2"></span>
+                    Vehicle Storage & Responsibility
+                  </h5>
+                  <div className="space-y-2 text-sm">
+                    <p>3. While leaving the vehicle in our garage for service, kindly remove all your important & valuable items from your vehicle. Therefore if any claim the company is not responsible.</p>
+                    <p>4. After Completion of work, we request Customer to collect the Vehicle within 2 days. Otherwise company is not responsible for any damages or claim and also when you receive back the vehicle. Please check properly and confirm everything is ok. If any problem kindly notify Immediately otherwise company is not responsible for any claim further.</p>
+                  </div>
+                </div>
+                
+                <div className="bg-gray-700/50 rounded-lg p-4">
+                  <h5 className="font-semibold text-white mb-3 flex items-center">
+                    <span className="w-2 h-2 bg-blue-400 rounded-full mr-2"></span>
+                    Service Recommendations
+                  </h5>
+                  <div className="space-y-3 text-sm">
+                    <div>
+                      <p className="font-medium text-blue-300 mb-2">Wheel Alignment should be done:</p>
+                      <ul className="list-disc list-inside space-y-1 ml-4">
+                        <li>After every 20,000 km</li>
+                        <li>After any suspension parts changing</li>
+                        <li>After changing tyres or using different size of tyres</li>
+                        <li>After hitting footpath korb, Block or any similar things</li>
+                      </ul>
+                    </div>
+                    
+                    <div>
+                      <p className="font-medium text-blue-300 mb-2">Tyre Balancing and Rotation should be done:</p>
+                      <p className="ml-4">All cars every 10,000 km</p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="bg-gray-700/50 rounded-lg p-4">
+                  <h5 className="font-semibold text-white mb-3 flex items-center">
+                    <span className="w-2 h-2 bg-green-400 rounded-full mr-2"></span>
+                    Additional Information
+                  </h5>
+                  <div className="space-y-2 text-sm">
+                    <p>• All services are performed by certified technicians</p>
+                    <p>• Original parts and quality materials are used</p>
+                    <p>• Service records are maintained for future reference</p>
+                    <p>• Customer satisfaction is our top priority</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            {/* Footer */}
+            <div className="p-6 border-t border-gray-700 flex justify-between items-center flex-shrink-0">
+              <div className="text-sm text-gray-400">
+                <span className="flex items-center">
+                  <Info className="w-4 h-4 mr-2" />
+                  These terms apply to all services provided by Aster Auto Garage
+                </span>
+              </div>
+              <button
+                onClick={() => setShowTermsTooltip(null)}
+                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium"
+              >
+                Close
               </button>
             </div>
           </div>
