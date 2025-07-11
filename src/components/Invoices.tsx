@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useAccounting } from '../hooks/useAccounting';
-import { Plus, Edit2, Eye, Send, Search, Filter, Settings, X, ChevronUp, ChevronDown } from 'lucide-react';
+import { Plus, Edit2, Eye, Send, Search, Filter, Settings, X, ChevronUp, ChevronDown, GripVertical, Info, FileText } from 'lucide-react';
 import { Invoice } from '../types';
 import InvoiceView from './InvoiceView';
 import InvoiceForm from './InvoiceForm';
@@ -13,6 +13,9 @@ const Invoices: React.FC = () => {
   const [viewingInvoice, setViewingInvoice] = useState<Invoice | null>(null);
   const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
   const [showColumnSettings, setShowColumnSettings] = useState(false);
+  const [draggedItem, setDraggedItem] = useState<string | null>(null);
+  const [dragOverItem, setDragOverItem] = useState<string | null>(null);
+  const [showTermsTooltip, setShowTermsTooltip] = useState<string | null>(null);
 
   // All available columns with their properties
   const allColumns = [
@@ -162,9 +165,65 @@ const Invoices: React.FC = () => {
     }
   };
 
+  // Drag and Drop handlers
+  const handleDragStart = (e: React.DragEvent, columnKey: string) => {
+    setDraggedItem(columnKey);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e: React.DragEvent, columnKey: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDragOverItem(columnKey);
+  };
+
+  const handleDragLeave = () => {
+    setDragOverItem(null);
+  };
+
+  const handleDrop = (e: React.DragEvent, targetColumnKey: string) => {
+    e.preventDefault();
+    
+    if (draggedItem && draggedItem !== targetColumnKey) {
+      const newOrder = [...columnOrder];
+      const draggedIndex = newOrder.indexOf(draggedItem);
+      const targetIndex = newOrder.indexOf(targetColumnKey);
+      
+      // Remove dragged item and insert at target position
+      newOrder.splice(draggedIndex, 1);
+      newOrder.splice(targetIndex, 0, draggedItem);
+      
+      setColumnOrder(newOrder);
+    }
+    
+    setDraggedItem(null);
+    setDragOverItem(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedItem(null);
+    setDragOverItem(null);
+  };
+
   // Get column label
   const getColumnLabel = (key: string) => {
     return allColumns.find(col => col.key === key)?.label || key;
+  };
+
+  // Terms and Conditions content
+  const getTermsAndConditions = () => {
+    return `1. All tyres & Batteries warranty against manufacturing defects by Agency only. (Please Bring Original Invoice for warranty claim)
+2. There is no warranty for any spare parts Items.
+3. While leaving the vehicle in our garage for service, kindly remove all your important & valuable items from your vehicle. Therefore if any claim the company is not responsible.
+4. After Completion of work, we request Customer to collect the Vehicle within 2 days. Otherwise company is not responsible for any damages or claim and also when you receive back the vehicle. Please check properly and confirm everything is ok. If any problem kindly notify Immediately otherwise company is not responsible for any claim further.
+
+Wheel Alignment should be done:
+1. After every 20,000 km
+2. After any suspension parts changing
+3. After changing tyres or using different size of tyres
+4. After hitting footpath korb, Block or any similar things
+
+Tyre Balancing and Rotation should be done: All cars every 10,000 km`;
   };
 
   // Get cell value for a column
@@ -350,11 +409,53 @@ const Invoices: React.FC = () => {
               {filteredInvoices.map((invoice) => (
                 <tr key={invoice.id} className="hover:bg-gray-700/50">
                   {orderedVisibleColumns.map(columnKey => (
-                    <td key={columnKey} className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                    <td key={columnKey} className="px-6 py-4 whitespace-nowrap text-sm text-gray-300 relative">
                       {columnKey === 'status' ? (
                         <span className={`px-2 py-1 text-xs rounded-full ${getStatusColor(invoice.status)}`}>
                           {getCellValue(invoice, columnKey)}
                         </span>
+                      ) : columnKey === 'termsConditions' ? (
+                        <div className="relative">
+                          <button
+                            className="flex items-center text-blue-400 hover:text-blue-300 transition-colors"
+                            onMouseEnter={() => setShowTermsTooltip(invoice.id)}
+                            onMouseLeave={() => setShowTermsTooltip(null)}
+                          >
+                            <FileText className="w-4 h-4 mr-1" />
+                            View Terms
+                          </button>
+                          
+                          {/* Terms & Conditions Tooltip */}
+                          {showTermsTooltip === invoice.id && (
+                            <div className="absolute z-50 left-0 top-8 w-96 bg-gray-900 border border-gray-600 rounded-lg shadow-2xl p-4">
+                              <div className="flex items-center justify-between mb-3">
+                                <h4 className="text-sm font-semibold text-white flex items-center">
+                                  <FileText className="w-4 h-4 mr-2" />
+                                  Terms & Conditions
+                                </h4>
+                                <button
+                                  onClick={() => setShowTermsTooltip(null)}
+                                  className="text-gray-400 hover:text-white"
+                                >
+                                  <X className="w-4 h-4" />
+                                </button>
+                              </div>
+                              <div className="max-h-64 overflow-y-auto text-xs text-gray-300 leading-relaxed">
+                                <pre className="whitespace-pre-wrap font-sans">
+                                  {getTermsAndConditions()}
+                                </pre>
+                              </div>
+                              <div className="mt-3 pt-3 border-t border-gray-700">
+                                <button
+                                  onClick={() => setShowTermsTooltip(null)}
+                                  className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded transition-colors"
+                                >
+                                  Close
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       ) : (
                         <span className={columnKey === 'invoiceAmount' || columnKey === 'balanceDue' ? 'text-white font-medium' : ''}>
                           {getCellValue(invoice, columnKey)}
@@ -405,12 +506,12 @@ const Invoices: React.FC = () => {
         </div>
       </div>
 
-      {/* Column Settings Modal */}
+      {/* Enhanced Column Settings Modal with Drag & Drop */}
       {showColumnSettings && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-800 rounded-lg max-w-2xl w-full max-h-[80vh] overflow-hidden">
+          <div className="bg-gray-800 rounded-lg max-w-4xl w-full max-h-[85vh] overflow-hidden">
             <div className="flex items-center justify-between p-6 border-b border-gray-700">
-              <h2 className="text-xl font-bold text-white">Customize Columns</h2>
+              <h2 className="text-xl font-bold text-white">Customize Invoice Columns</h2>
               <button
                 onClick={() => {
                   setShowColumnSettings(false);
@@ -422,65 +523,123 @@ const Invoices: React.FC = () => {
               </button>
             </div>
             
-            <div className="p-6 overflow-y-auto max-h-[60vh]">
-              <div className="space-y-4">
-                <div className="mb-4">
-                  <h3 className="text-lg font-semibold text-white mb-2">Select Columns to Display</h3>
-                  <p className="text-gray-400 text-sm">Choose which columns you want to see in the invoice table</p>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {allColumns.map(column => (
-                    <div key={column.key} className="flex items-center justify-between p-3 bg-gray-700 rounded-lg">
-                      <div className="flex items-center">
-                        <input
-                          type="checkbox"
-                          id={column.key}
-                          checked={visibleColumns.includes(column.key)}
-                          onChange={() => toggleColumnVisibility(column.key)}
-                          className="w-4 h-4 text-blue-600 bg-gray-600 border-gray-500 rounded focus:ring-blue-500"
-                        />
-                        <label htmlFor={column.key} className="ml-3 text-sm text-white">
-                          {column.label}
-                        </label>
+            <div className="p-6 overflow-y-auto max-h-[65vh]">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Column Selection */}
+                <div>
+                  <div className="mb-6">
+                    <h3 className="text-lg font-semibold text-white mb-2">Available Columns</h3>
+                    <p className="text-gray-400 text-sm">Select which columns to display in the invoice table</p>
+                  </div>
+                  
+                  <div className="space-y-3 max-h-96 overflow-y-auto">
+                    {allColumns.map(column => (
+                      <div key={column.key} className="flex items-center justify-between p-3 bg-gray-700 rounded-lg hover:bg-gray-600 transition-colors">
+                        <div className="flex items-center">
+                          <input
+                            type="checkbox"
+                            id={column.key}
+                            checked={visibleColumns.includes(column.key)}
+                            onChange={() => toggleColumnVisibility(column.key)}
+                            className="w-4 h-4 text-blue-600 bg-gray-600 border-gray-500 rounded focus:ring-blue-500"
+                          />
+                          <label htmlFor={column.key} className="ml-3 text-sm text-white cursor-pointer">
+                            {column.label}
+                          </label>
+                        </div>
+                        
+                        {visibleColumns.includes(column.key) && (
+                          <div className="flex items-center space-x-1">
+                            <span className="text-xs bg-blue-600 text-white px-2 py-1 rounded">
+                              #{columnOrder.indexOf(column.key) + 1}
+                            </span>
+                          </div>
+                        )}
                       </div>
-                      
-                      {visibleColumns.includes(column.key) && (
-                        <div className="flex space-x-1">
+                    ))}
+                  </div>
+                </div>
+
+                {/* Column Ordering with Drag & Drop */}
+                <div>
+                  <div className="mb-6">
+                    <h3 className="text-lg font-semibold text-white mb-2">Column Order</h3>
+                    <p className="text-gray-400 text-sm">Drag & drop to reorder columns or use arrow buttons</p>
+                  </div>
+                  
+                  <div className="space-y-2 max-h-96 overflow-y-auto">
+                    {orderedVisibleColumns.map((columnKey, index) => (
+                      <div
+                        key={columnKey}
+                        draggable
+                        onDragStart={(e) => handleDragStart(e, columnKey)}
+                        onDragOver={(e) => handleDragOver(e, columnKey)}
+                        onDragLeave={handleDragLeave}
+                        onDrop={(e) => handleDrop(e, columnKey)}
+                        onDragEnd={handleDragEnd}
+                        className={`flex items-center justify-between p-3 rounded-lg cursor-move transition-all ${
+                          draggedItem === columnKey 
+                            ? 'bg-blue-600 shadow-lg transform scale-105' 
+                            : dragOverItem === columnKey 
+                              ? 'bg-blue-500/50 border-2 border-blue-400' 
+                              : 'bg-gray-700 hover:bg-gray-600'
+                        }`}
+                      >
+                        <div className="flex items-center">
+                          <GripVertical className="w-5 h-5 text-gray-400 mr-3" />
+                          <span className="text-xs bg-blue-600 text-white px-2 py-1 rounded mr-3">
+                            #{index + 1}
+                          </span>
+                          <span className="text-sm text-white">
+                            {getColumnLabel(columnKey)}
+                          </span>
+                        </div>
+                        
+                        <div className="flex items-center space-x-1">
                           <button
-                            onClick={() => moveColumnUp(column.key)}
-                            className="p-1 text-gray-400 hover:text-white transition-colors"
+                            onClick={() => moveColumnUp(columnKey)}
+                            disabled={index === 0}
+                            className="p-1 text-gray-400 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             title="Move Up"
                           >
                             <ChevronUp className="w-4 h-4" />
                           </button>
                           <button
-                            onClick={() => moveColumnDown(column.key)}
-                            className="p-1 text-gray-400 hover:text-white transition-colors"
+                            onClick={() => moveColumnDown(columnKey)}
+                            disabled={index === orderedVisibleColumns.length - 1}
+                            className="p-1 text-gray-400 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             title="Move Down"
                           >
                             <ChevronDown className="w-4 h-4" />
                           </button>
                         </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-                
-                <div className="mt-6 pt-4 border-t border-gray-700">
-                  <h4 className="text-md font-semibold text-white mb-2">Column Order Preview</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {orderedVisibleColumns.map((columnKey, index) => (
-                      <span key={columnKey} className="px-3 py-1 bg-blue-600 text-white text-xs rounded-full">
-                        {index + 1}. {getColumnLabel(columnKey)}
-                      </span>
+                      </div>
                     ))}
                   </div>
                 </div>
               </div>
+              
+              {/* Preview Section */}
+              <div className="mt-8 pt-6 border-t border-gray-700">
+                <h4 className="text-md font-semibold text-white mb-3">Column Preview</h4>
+                <div className="flex flex-wrap gap-2">
+                  {orderedVisibleColumns.map((columnKey, index) => (
+                    <span key={columnKey} className="px-3 py-1 bg-gradient-to-r from-blue-600 to-purple-600 text-white text-xs rounded-full">
+                      {index + 1}. {getColumnLabel(columnKey)}
+                    </span>
+                  ))}
+                </div>
+                <p className="text-gray-400 text-xs mt-2">
+                  Showing {orderedVisibleColumns.length} of {allColumns.length} available columns
+                </p>
+              </div>
             </div>
             
-            <div className="p-6 border-t border-gray-700 flex justify-end">
+            <div className="p-6 border-t border-gray-700 flex justify-between items-center">
+              <div className="text-sm text-gray-400">
+                <Info className="w-4 h-4 inline mr-1" />
+                Drag columns to reorder or use arrow buttons
+              </div>
               <button
                 onClick={() => {
                   setShowColumnSettings(false);
