@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useAccounting } from '../hooks/useAccounting';
-import { Plus, Edit2, Eye, Send, Search, Filter, Settings, X, ChevronUp, ChevronDown, GripVertical, Info, FileText } from 'lucide-react';
+import { Plus, Edit2, Eye, Send, Search, Filter, Settings, X, ChevronUp, ChevronDown, GripVertical, Info, FileText, Save, RotateCcw, Edit3, Check, XCircle } from 'lucide-react';
 import { Invoice } from '../types';
 import InvoiceView from './InvoiceView';
 import InvoiceForm from './InvoiceForm';
@@ -16,6 +16,17 @@ const Invoices: React.FC = () => {
   const [draggedItem, setDraggedItem] = useState<string | null>(null);
   const [dragOverItem, setDragOverItem] = useState<string | null>(null);
   const [showTermsTooltip, setShowTermsTooltip] = useState<string | null>(null);
+
+  // Editing states
+  const [editingCell, setEditingCell] = useState<{ invoiceId: string; field: string } | null>(null);
+  const [editingValue, setEditingValue] = useState<string>('');
+  const [bulkEditMode, setBulkEditMode] = useState(false);
+  const [selectedInvoices, setSelectedInvoices] = useState<string[]>([]);
+  const [showBulkEditPanel, setShowBulkEditPanel] = useState(false);
+  const [bulkEditField, setBulkEditField] = useState('');
+  const [bulkEditValue, setBulkEditValue] = useState('');
+  const [showQuickEditPanel, setShowQuickEditPanel] = useState(false);
+  const [quickEditInvoice, setQuickEditInvoice] = useState<Invoice | null>(null);
 
   // All available columns with their properties
   const allColumns = [
@@ -297,11 +308,80 @@ Tyre Balancing and Rotation should be done: All cars every 10,000 km`;
   // Get ordered visible columns
   const orderedVisibleColumns = columnOrder.filter(key => visibleColumns.includes(key));
 
+  // Editing functions
+  const startCellEdit = (invoiceId: string, field: string, currentValue: string) => {
+    setEditingCell({ invoiceId, field });
+    setEditingValue(currentValue);
+  };
+
+  const saveCellEdit = () => {
+    if (editingCell) {
+      // Here you would typically call an update function
+      // For now, we'll just log the change
+      console.log(`Updating invoice ${editingCell.invoiceId}, field ${editingCell.field} to ${editingValue}`);
+      setEditingCell(null);
+      setEditingValue('');
+    }
+  };
+
+  const cancelCellEdit = () => {
+    setEditingCell(null);
+    setEditingValue('');
+  };
+
+  const toggleInvoiceSelection = (invoiceId: string) => {
+    setSelectedInvoices(prev => 
+      prev.includes(invoiceId) 
+        ? prev.filter(id => id !== invoiceId)
+        : [...prev, invoiceId]
+    );
+  };
+
+  const selectAllInvoices = () => {
+    setSelectedInvoices(filteredInvoices.map(inv => inv.id));
+  };
+
+  const clearSelection = () => {
+    setSelectedInvoices([]);
+  };
+
+  const applyBulkEdit = () => {
+    if (bulkEditField && bulkEditValue && selectedInvoices.length > 0) {
+      console.log(`Bulk updating ${selectedInvoices.length} invoices, field ${bulkEditField} to ${bulkEditValue}`);
+      setShowBulkEditPanel(false);
+      setBulkEditField('');
+      setBulkEditValue('');
+      clearSelection();
+      setBulkEditMode(false);
+    }
+  };
+
+  const openQuickEdit = (invoice: Invoice) => {
+    setQuickEditInvoice(invoice);
+    setShowQuickEditPanel(true);
+  };
+
+  // Get editable fields (exclude some calculated/system fields)
+  const editableFields = allColumns.filter(col => 
+    !['daysToDueDate', 'daysOverdue', 'timestamp', 'balanceDue'].includes(col.key)
+  );
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold text-white">Invoices</h1>
         <div className="flex space-x-3">
+          <button
+            onClick={() => setBulkEditMode(!bulkEditMode)}
+            className={`px-4 py-2 rounded-lg flex items-center transition-colors ${
+              bulkEditMode 
+                ? 'bg-orange-600 hover:bg-orange-700 text-white' 
+                : 'bg-gray-600 hover:bg-gray-700 text-white'
+            }`}
+          >
+            <Edit3 className="w-5 h-5 mr-2" />
+            {bulkEditMode ? 'Exit Bulk Edit' : 'Bulk Edit'}
+          </button>
           <button
             onClick={() => setShowColumnSettings(true)}
             className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg flex items-center transition-colors"
@@ -318,6 +398,42 @@ Tyre Balancing and Rotation should be done: All cars every 10,000 km`;
           </button>
         </div>
       </div>
+
+      {/* Bulk Edit Controls */}
+      {bulkEditMode && (
+        <div className="bg-orange-900/20 border border-orange-700 rounded-lg p-4">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center space-x-4">
+              <h3 className="text-lg font-semibold text-orange-300">Bulk Edit Mode</h3>
+              <span className="text-sm text-orange-400">
+                {selectedInvoices.length} invoice(s) selected
+              </span>
+            </div>
+            <div className="flex space-x-2">
+              <button
+                onClick={selectAllInvoices}
+                className="px-3 py-1 bg-orange-600 hover:bg-orange-700 text-white rounded text-sm transition-colors"
+              >
+                Select All
+              </button>
+              <button
+                onClick={clearSelection}
+                className="px-3 py-1 bg-gray-600 hover:bg-gray-700 text-white rounded text-sm transition-colors"
+              >
+                Clear
+              </button>
+              {selectedInvoices.length > 0 && (
+                <button
+                  onClick={() => setShowBulkEditPanel(true)}
+                  className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm transition-colors"
+                >
+                  Edit Selected
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Search and Filter */}
       <div className="flex flex-col md:flex-row gap-4">
@@ -395,6 +511,16 @@ Tyre Balancing and Rotation should be done: All cars every 10,000 km`;
           <table className="w-full">
             <thead className="bg-gray-700">
               <tr>
+                {bulkEditMode && (
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                    <input
+                      type="checkbox"
+                      checked={selectedInvoices.length === filteredInvoices.length}
+                      onChange={() => selectedInvoices.length === filteredInvoices.length ? clearSelection() : selectAllInvoices()}
+                      className="w-4 h-4 text-orange-600 bg-gray-600 border-gray-500 rounded focus:ring-orange-500"
+                    />
+                  </th>
+                )}
                 {orderedVisibleColumns.map(columnKey => (
                   <th key={columnKey} className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
                     {getColumnLabel(columnKey)}
@@ -408,9 +534,45 @@ Tyre Balancing and Rotation should be done: All cars every 10,000 km`;
             <tbody className="divide-y divide-gray-700">
               {filteredInvoices.map((invoice) => (
                 <tr key={invoice.id} className="hover:bg-gray-700/50">
+                  {bulkEditMode && (
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <input
+                        type="checkbox"
+                        checked={selectedInvoices.includes(invoice.id)}
+                        onChange={() => toggleInvoiceSelection(invoice.id)}
+                        className="w-4 h-4 text-orange-600 bg-gray-600 border-gray-500 rounded focus:ring-orange-500"
+                      />
+                    </td>
+                  )}
                   {orderedVisibleColumns.map(columnKey => (
                     <td key={columnKey} className="px-6 py-4 whitespace-nowrap text-sm text-gray-300 relative">
-                      {columnKey === 'status' ? (
+                      {editingCell?.invoiceId === invoice.id && editingCell?.field === columnKey ? (
+                        <div className="flex items-center space-x-2">
+                          <input
+                            type="text"
+                            value={editingValue}
+                            onChange={(e) => setEditingValue(e.target.value)}
+                            className="w-full px-2 py-1 bg-gray-600 border border-gray-500 rounded text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            autoFocus
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') saveCellEdit();
+                              if (e.key === 'Escape') cancelCellEdit();
+                            }}
+                          />
+                          <button
+                            onClick={saveCellEdit}
+                            className="p-1 text-green-400 hover:text-green-300 transition-colors"
+                          >
+                            <Check className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={cancelCellEdit}
+                            className="p-1 text-red-400 hover:text-red-300 transition-colors"
+                          >
+                            <XCircle className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ) : columnKey === 'status' ? (
                         <span className={`px-2 py-1 text-xs rounded-full ${getStatusColor(invoice.status)}`}>
                           {getCellValue(invoice, columnKey)}
                         </span>
@@ -425,14 +587,32 @@ Tyre Balancing and Rotation should be done: All cars every 10,000 km`;
                           </button>
                         </div>
                       ) : (
-                        <span className={columnKey === 'invoiceAmount' || columnKey === 'balanceDue' ? 'text-white font-medium' : ''}>
-                          {getCellValue(invoice, columnKey)}
-                        </span>
+                        <div className="group flex items-center justify-between">
+                          <span className={columnKey === 'invoiceAmount' || columnKey === 'balanceDue' ? 'text-white font-medium' : ''}>
+                            {getCellValue(invoice, columnKey)}
+                          </span>
+                          {editableFields.some(field => field.key === columnKey) && (
+                            <button
+                              onClick={() => startCellEdit(invoice.id, columnKey, getCellValue(invoice, columnKey))}
+                              className="opacity-0 group-hover:opacity-100 ml-2 p-1 text-blue-400 hover:text-blue-300 transition-all"
+                              title="Edit this field"
+                            >
+                              <Edit2 className="w-3 h-3" />
+                            </button>
+                          )}
+                        </div>
                       )}
                     </td>
                   ))}
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
                     <div className="flex space-x-2">
+                      <button
+                        onClick={() => openQuickEdit(invoice)}
+                        className="text-purple-400 hover:text-purple-300 transition-colors"
+                        title="Quick Edit"
+                      >
+                        <Edit3 className="w-4 h-4" />
+                      </button>
                       <button
                         onClick={() => setViewingInvoice(invoice)}
                         className="text-blue-400 hover:text-blue-300 transition-colors"
@@ -473,6 +653,128 @@ Tyre Balancing and Rotation should be done: All cars every 10,000 km`;
           </table>
         </div>
       </div>
+
+      {/* Bulk Edit Panel */}
+      {showBulkEditPanel && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 rounded-lg max-w-md w-full">
+            <div className="flex items-center justify-between p-6 border-b border-gray-700">
+              <h2 className="text-xl font-bold text-white">Bulk Edit {selectedInvoices.length} Invoice(s)</h2>
+              <button
+                onClick={() => setShowBulkEditPanel(false)}
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Field to Edit
+                </label>
+                <select
+                  value={bulkEditField}
+                  onChange={(e) => setBulkEditField(e.target.value)}
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Select Field</option>
+                  {editableFields.map(field => (
+                    <option key={field.key} value={field.key}>
+                      {field.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  New Value
+                </label>
+                <input
+                  type="text"
+                  value={bulkEditValue}
+                  onChange={(e) => setBulkEditValue(e.target.value)}
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter new value"
+                />
+              </div>
+              
+              <div className="flex justify-end space-x-3 pt-4">
+                <button
+                  onClick={() => setShowBulkEditPanel(false)}
+                  className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={applyBulkEdit}
+                  disabled={!bulkEditField || !bulkEditValue}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+                >
+                  Apply Changes
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Quick Edit Panel */}
+      {showQuickEditPanel && quickEditInvoice && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-hidden">
+            <div className="flex items-center justify-between p-6 border-b border-gray-700">
+              <h2 className="text-xl font-bold text-white">Quick Edit - {quickEditInvoice.number}</h2>
+              <button
+                onClick={() => setShowQuickEditPanel(false)}
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {editableFields.map(field => (
+                  <div key={field.key} className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-300">
+                      {field.label}
+                    </label>
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="text"
+                        defaultValue={getCellValue(quickEditInvoice, field.key)}
+                        className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                      <button
+                        className="p-2 text-blue-400 hover:text-blue-300 transition-colors"
+                        title="Save this field"
+                      >
+                        <Save className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              <div className="flex justify-end space-x-3 pt-6 border-t border-gray-700 mt-6">
+                <button
+                  onClick={() => setShowQuickEditPanel(false)}
+                  className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
+                >
+                  Save All Changes
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Enhanced Column Settings Modal with Drag & Drop */}
       {showColumnSettings && (
