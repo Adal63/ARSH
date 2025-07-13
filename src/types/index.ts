@@ -47,6 +47,7 @@ export interface Invoice {
   status: 'Draft' | 'Sent' | 'Paid' | 'Overdue';
   items: InvoiceItem[];
   created: Date;
+  attachments?: File[];
 }
 
 export interface InvoiceItem {
