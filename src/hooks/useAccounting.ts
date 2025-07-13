@@ -45,6 +45,7 @@ export const useAccounting = () => {
       created: new Date()
     };
     setCustomers(prev => [...prev, newCustomer]);
+    return newCustomer; // Return the created customer
   };
 
   const updateCustomer = (id: string, updates: Partial<Customer>) => {

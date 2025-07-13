@@ -17,17 +17,6 @@ const Invoices: React.FC = () => {
   const [dragOverItem, setDragOverItem] = useState<string | null>(null);
   const [showTermsTooltip, setShowTermsTooltip] = useState<string | null>(null);
 
-  // Editing states
-  const [editingCell, setEditingCell] = useState<{ invoiceId: string; field: string } | null>(null);
-  const [editingValue, setEditingValue] = useState<string>('');
-  const [bulkEditMode, setBulkEditMode] = useState(false);
-  const [selectedInvoices, setSelectedInvoices] = useState<string[]>([]);
-  const [showBulkEditPanel, setShowBulkEditPanel] = useState(false);
-  const [bulkEditField, setBulkEditField] = useState('');
-  const [bulkEditValue, setBulkEditValue] = useState('');
-  const [showQuickEditPanel, setShowQuickEditPanel] = useState(false);
-  const [quickEditInvoice, setQuickEditInvoice] = useState<Invoice | null>(null);
-
   // All available columns with their properties
   const allColumns = [
     { key: 'issueDate', label: 'Issue Date', defaultVisible: true },
@@ -221,22 +210,6 @@ const Invoices: React.FC = () => {
     return allColumns.find(col => col.key === key)?.label || key;
   };
 
-  // Terms and Conditions content
-  const getTermsAndConditions = () => {
-    return `1. All tyres & Batteries warranty against manufacturing defects by Agency only. (Please Bring Original Invoice for warranty claim)
-2. There is no warranty for any spare parts Items.
-3. While leaving the vehicle in our garage for service, kindly remove all your important & valuable items from your vehicle. Therefore if any claim the company is not responsible.
-4. After Completion of work, we request Customer to collect the Vehicle within 2 days. Otherwise company is not responsible for any damages or claim and also when you receive back the vehicle. Please check properly and confirm everything is ok. If any problem kindly notify Immediately otherwise company is not responsible for any claim further.
-
-Wheel Alignment should be done:
-1. After every 20,000 km
-2. After any suspension parts changing
-3. After changing tyres or using different size of tyres
-4. After hitting footpath korb, Block or any similar things
-
-Tyre Balancing and Rotation should be done: All cars every 10,000 km`;
-  };
-
   // Get cell value for a column
   const getCellValue = (invoice: Invoice, columnKey: string) => {
     const customer = customers.find(c => c.id === invoice.customerId);
@@ -307,64 +280,6 @@ Tyre Balancing and Rotation should be done: All cars every 10,000 km`;
 
   // Get ordered visible columns
   const orderedVisibleColumns = columnOrder.filter(key => visibleColumns.includes(key));
-
-  // Editing functions
-  const startCellEdit = (invoiceId: string, field: string, currentValue: string) => {
-    setEditingCell({ invoiceId, field });
-    setEditingValue(currentValue);
-  };
-
-  const saveCellEdit = () => {
-    if (editingCell) {
-      // Here you would typically call an update function
-      // For now, we'll just log the change
-      console.log(`Updating invoice ${editingCell.invoiceId}, field ${editingCell.field} to ${editingValue}`);
-      setEditingCell(null);
-      setEditingValue('');
-    }
-  };
-
-  const cancelCellEdit = () => {
-    setEditingCell(null);
-    setEditingValue('');
-  };
-
-  const toggleInvoiceSelection = (invoiceId: string) => {
-    setSelectedInvoices(prev => 
-      prev.includes(invoiceId) 
-        ? prev.filter(id => id !== invoiceId)
-        : [...prev, invoiceId]
-    );
-  };
-
-  const selectAllInvoices = () => {
-    setSelectedInvoices(filteredInvoices.map(inv => inv.id));
-  };
-
-  const clearSelection = () => {
-    setSelectedInvoices([]);
-  };
-
-  const applyBulkEdit = () => {
-    if (bulkEditField && bulkEditValue && selectedInvoices.length > 0) {
-      console.log(`Bulk updating ${selectedInvoices.length} invoices, field ${bulkEditField} to ${bulkEditValue}`);
-      setShowBulkEditPanel(false);
-      setBulkEditField('');
-      setBulkEditValue('');
-      clearSelection();
-      setBulkEditMode(false);
-    }
-  };
-
-  const openQuickEdit = (invoice: Invoice) => {
-    setQuickEditInvoice(invoice);
-    setShowQuickEditPanel(true);
-  };
-
-  // Get editable fields (exclude some calculated/system fields)
-  const editableFields = allColumns.filter(col => 
-    !['daysToDueDate', 'daysOverdue', 'timestamp', 'balanceDue'].includes(col.key)
-  );
 
   return (
     <div className="p-6 space-y-6">

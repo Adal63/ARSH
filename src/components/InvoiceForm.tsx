@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAccounting } from '../hooks/useAccounting';
-import { Plus, Trash2, X } from 'lucide-react';
+import { Plus, Trash2, X, Search, ChevronDown, User } from 'lucide-react';
 import { InvoiceItem } from '../types';
 
 interface InvoiceFormProps {
@@ -10,7 +10,23 @@ interface InvoiceFormProps {
 }
 
 const InvoiceForm: React.FC<InvoiceFormProps> = ({ onClose, onSubmit, editingInvoice }) => {
-  const { customers } = useAccounting();
+  const { customers, addCustomer } = useAccounting();
+  
+  // Customer search and creation states
+  const [customerSearch, setCustomerSearch] = useState('');
+  const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
+  const [showCreateCustomer, setShowCreateCustomer] = useState(false);
+  const [newCustomerData, setNewCustomerData] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    address: '',
+    company: '',
+    status: 'Active' as const,
+    totalRevenue: 0,
+    lastContact: new Date(),
+    notes: ''
+  });
   
   const [formData, setFormData] = useState({
     customerId: editingInvoice?.customerId || '',
@@ -44,6 +60,54 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ onClose, onSubmit, editingInv
       { id: '1', description: '', quantity: 1, rate: 0, amount: 0 }
     ]
   );
+
+  // Filter customers based on search
+  const filteredCustomers = customers.filter(customer =>
+    customer.name.toLowerCase().includes(customerSearch.toLowerCase()) ||
+    customer.company.toLowerCase().includes(customerSearch.toLowerCase()) ||
+    customer.email.toLowerCase().includes(customerSearch.toLowerCase())
+  );
+
+  // Get selected customer for display
+  const selectedCustomer = customers.find(c => c.id === formData.customerId);
+
+  const handleCustomerSelect = (customerId: string) => {
+    setFormData({ ...formData, customerId });
+    setCustomerSearch('');
+    setShowCustomerDropdown(false);
+  };
+
+  const handleCreateNewCustomer = () => {
+    setShowCreateCustomer(true);
+    setShowCustomerDropdown(false);
+    // Pre-fill name if user was searching
+    if (customerSearch.trim()) {
+      setNewCustomerData({ ...newCustomerData, name: customerSearch.trim() });
+    }
+  };
+
+  const handleSaveNewCustomer = (e: React.FormEvent) => {
+    e.preventDefault();
+    const newCustomer = addCustomer(newCustomerData);
+    
+    // Auto-select the newly created customer
+    setFormData({ ...formData, customerId: newCustomer.id });
+    
+    // Reset form and close modal
+    setNewCustomerData({
+      name: '',
+      email: '',
+      phone: '',
+      address: '',
+      company: '',
+      status: 'Active',
+      totalRevenue: 0,
+      lastContact: new Date(),
+      notes: ''
+    });
+    setShowCreateCustomer(false);
+    setCustomerSearch('');
+  };
 
   const addItem = () => {
     const newItem: InvoiceItem = {
@@ -193,23 +257,92 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ onClose, onSubmit, editingInv
                   Customer & Business Information
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  <div>
+                  {/* Enhanced Customer Search Dropdown */}
+                  <div className="relative">
                     <label className="block text-sm font-medium text-gray-300 mb-2">
-                      Customer
+                      Customer *
                     </label>
-                    <select
-                      value={formData.customerId}
-                      onChange={(e) => setFormData({ ...formData, customerId: e.target.value })}
-                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      required
-                    >
-                      <option value="">Select Customer</option>
-                      {customers.map(customer => (
-                        <option key={customer.id} value={customer.id}>
-                          {customer.name} - {customer.company}
-                        </option>
-                      ))}
-                    </select>
+                    <div className="relative">
+                      <div className="flex">
+                        <div className="relative flex-1">
+                          <Search className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+                          <input
+                            type="text"
+                            value={selectedCustomer ? `${selectedCustomer.name} - ${selectedCustomer.company}` : customerSearch}
+                            onChange={(e) => {
+                              setCustomerSearch(e.target.value);
+                              setShowCustomerDropdown(true);
+                              if (selectedCustomer) {
+                                setFormData({ ...formData, customerId: '' });
+                              }
+                            }}
+                            onFocus={() => setShowCustomerDropdown(true)}
+                            placeholder="Search customers..."
+                            className="w-full pl-10 pr-10 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            required
+                          />
+                          <ChevronDown className="absolute right-3 top-3 w-4 h-4 text-gray-400" />
+                        </div>
+                      </div>
+
+                      {/* Customer Dropdown */}
+                      {showCustomerDropdown && (
+                        <div className="absolute z-50 w-full mt-1 bg-gray-700 border border-gray-600 rounded-lg shadow-lg max-h-64 overflow-y-auto">
+                          {/* Create New Customer Option */}
+                          <button
+                            type="button"
+                            onClick={handleCreateNewCustomer}
+                            className="w-full px-4 py-3 text-left hover:bg-gray-600 transition-colors border-b border-gray-600 flex items-center"
+                          >
+                            <Plus className="w-4 h-4 mr-3 text-green-400" />
+                            <div>
+                              <div className="text-green-400 font-medium">Create New Customer</div>
+                              {customerSearch.trim() && (
+                                <div className="text-xs text-gray-400">
+                                  Create "{customerSearch.trim()}"
+                                </div>
+                              )}
+                            </div>
+                          </button>
+
+                          {/* Existing Customers */}
+                          {filteredCustomers.length > 0 ? (
+                            filteredCustomers.map(customer => (
+                              <button
+                                key={customer.id}
+                                type="button"
+                                onClick={() => handleCustomerSelect(customer.id)}
+                                className="w-full px-4 py-3 text-left hover:bg-gray-600 transition-colors flex items-center"
+                              >
+                                <User className="w-4 h-4 mr-3 text-blue-400" />
+                                <div className="flex-1">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-white font-medium">{customer.name}</span>
+                                    <span className={`px-2 py-1 text-xs rounded-full ${
+                                      customer.status === 'Active' ? 'bg-green-900 text-green-300' :
+                                      customer.status === 'Inactive' ? 'bg-red-900 text-red-300' :
+                                      'bg-blue-900 text-blue-300'
+                                    }`}>
+                                      {customer.status}
+                                    </span>
+                                  </div>
+                                  <div className="text-sm text-gray-400">{customer.company}</div>
+                                  <div className="text-xs text-gray-500">{customer.email}</div>
+                                </div>
+                              </button>
+                            ))
+                          ) : customerSearch.trim() ? (
+                            <div className="px-4 py-3 text-gray-400 text-center">
+                              No customers found matching "{customerSearch}"
+                            </div>
+                          ) : (
+                            <div className="px-4 py-3 text-gray-400 text-center">
+                              Start typing to search customers
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   <div>
@@ -449,7 +582,7 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ onClose, onSubmit, editingInv
               </div>
             </div>
 
-            {/* Original sections moved below */}
+            {/* Invoice Items Section */}
             <div className="space-y-6">
               <div>
                 <h3 className="text-lg font-semibold text-white mb-4 border-b border-gray-600 pb-2">
@@ -554,7 +687,6 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ onClose, onSubmit, editingInv
                 </div>
               </div>
             </div>
-            </div>
 
             {/* Form Actions */}
             <div className="flex justify-end space-x-4 pt-6 border-t border-gray-700">
@@ -575,6 +707,142 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ onClose, onSubmit, editingInv
           </form>
         </div>
       </div>
+
+      {/* Create New Customer Modal */}
+      {showCreateCustomer && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[60] p-4">
+          <div className="bg-gray-800 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-hidden">
+            <div className="flex items-center justify-between p-6 border-b border-gray-700">
+              <h3 className="text-xl font-bold text-white">Create New Customer</h3>
+              <button
+                onClick={() => setShowCreateCustomer(false)}
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="overflow-y-auto max-h-[calc(90vh-140px)]">
+              <form onSubmit={handleSaveNewCustomer} className="p-6 space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">
+                      Full Name *
+                    </label>
+                    <input
+                      type="text"
+                      value={newCustomerData.name}
+                      onChange={(e) => setNewCustomerData({ ...newCustomerData, name: e.target.value })}
+                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">
+                      Email *
+                    </label>
+                    <input
+                      type="email"
+                      value={newCustomerData.email}
+                      onChange={(e) => setNewCustomerData({ ...newCustomerData, email: e.target.value })}
+                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">
+                      Phone *
+                    </label>
+                    <input
+                      type="tel"
+                      value={newCustomerData.phone}
+                      onChange={(e) => setNewCustomerData({ ...newCustomerData, phone: e.target.value })}
+                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">
+                      Company *
+                    </label>
+                    <input
+                      type="text"
+                      value={newCustomerData.company}
+                      onChange={(e) => setNewCustomerData({ ...newCustomerData, company: e.target.value })}
+                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">
+                      Status
+                    </label>
+                    <select
+                      value={newCustomerData.status}
+                      onChange={(e) => setNewCustomerData({ ...newCustomerData, status: e.target.value as any })}
+                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="Prospect">Prospect</option>
+                      <option value="Active">Active</option>
+                      <option value="Inactive">Inactive</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">
+                      Total Revenue
+                    </label>
+                    <input
+                      type="number"
+                      value={newCustomerData.totalRevenue}
+                      onChange={(e) => setNewCustomerData({ ...newCustomerData, totalRevenue: Number(e.target.value) })}
+                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-300 mb-1">
+                      Address *
+                    </label>
+                    <input
+                      type="text"
+                      value={newCustomerData.address}
+                      onChange={(e) => setNewCustomerData({ ...newCustomerData, address: e.target.value })}
+                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-300 mb-1">
+                      Notes
+                    </label>
+                    <textarea
+                      value={newCustomerData.notes}
+                      onChange={(e) => setNewCustomerData({ ...newCustomerData, notes: e.target.value })}
+                      rows={3}
+                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end space-x-3 pt-4 border-t border-gray-700">
+                  <button
+                    type="button"
+                    onClick={() => setShowCreateCustomer(false)}
+                    className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                  >
+                    Create Customer
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
