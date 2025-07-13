@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useAccounting } from '../hooks/useAccounting';
-import { Plus, Trash2, X, Search, ChevronDown, User } from 'lucide-react';
+import { Plus, Trash2, X, Search, ChevronDown, User, Upload, Image, FileText, Download, Eye } from 'lucide-react';
 import { InvoiceItem } from '../types';
 
 interface InvoiceFormProps {
@@ -16,6 +16,17 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ onClose, onSubmit, editingInv
   const [customerSearch, setCustomerSearch] = useState('');
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
   const [showCreateCustomer, setShowCreateCustomer] = useState(false);
+  
+  // Refs for click outside detection
+  const customerDropdownRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Attachments state
+  const [attachments, setAttachments] = useState<File[]>(
+    editingInvoice?.attachments || []
+  );
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  
   const [newCustomerData, setNewCustomerData] = useState({
     name: '',
     email: '',
@@ -54,6 +65,22 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ onClose, onSubmit, editingInv
     createdBy: editingInvoice?.createdBy || 'Althaf',
     creditBy: editingInvoice?.creditBy || 'Finance Team'
   });
+
+  // Click outside handler for customer dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (customerDropdownRef.current && !customerDropdownRef.current.contains(event.target as Node)) {
+        setShowCustomerDropdown(false);
+      }
+    };
+
+    if (showCustomerDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [showCustomerDropdown]);
 
   const [items, setItems] = useState<InvoiceItem[]>(
     editingInvoice?.items || [
@@ -109,6 +136,46 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ onClose, onSubmit, editingInv
     setCustomerSearch('');
   };
 
+  // Attachment handlers
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    const imageFiles = files.filter(file => file.type.startsWith('image/'));
+    
+    if (imageFiles.length !== files.length) {
+      alert('Only image files are allowed as attachments.');
+    }
+    
+    setAttachments(prev => [...prev, ...imageFiles]);
+    
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const removeAttachment = (index: number) => {
+    setAttachments(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const previewAttachment = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setPreviewImage(e.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const downloadAttachment = (file: File) => {
+    const url = URL.createObjectURL(file);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = file.name;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   const addItem = () => {
     const newItem: InvoiceItem = {
       id: Date.now().toString(),
@@ -151,7 +218,8 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ onClose, onSubmit, editingInv
       date: new Date(formData.date),
       dueDate: new Date(formData.dueDate),
       items: items.filter(item => item.description.trim() !== ''),
-      amount: getTotalAmount()
+      amount: getTotalAmount(),
+      attachments: attachments
     };
 
     onSubmit(invoiceData);
@@ -258,11 +326,11 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ onClose, onSubmit, editingInv
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {/* Enhanced Customer Search Dropdown */}
-                  <div className="relative">
+                  <div className="relative" ref={customerDropdownRef}>
                     <label className="block text-sm font-medium text-gray-300 mb-2">
                       Customer *
                     </label>
-                    <div className="relative">
+                    <div className="relative group">
                       <div className="flex">
                         <div className="relative flex-1">
                           <Search className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
@@ -277,24 +345,24 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ onClose, onSubmit, editingInv
                               }
                             }}
                             onFocus={() => setShowCustomerDropdown(true)}
-                            placeholder="Search customers..."
-                            className="w-full pl-10 pr-10 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            placeholder="Type to search customers..."
+                            className="w-full pl-10 pr-10 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 group-hover:border-gray-500"
                             required
                           />
-                          <ChevronDown className="absolute right-3 top-3 w-4 h-4 text-gray-400" />
+                          <ChevronDown className={`absolute right-3 top-3 w-4 h-4 text-gray-400 transition-transform duration-200 ${showCustomerDropdown ? 'rotate-180' : ''}`} />
                         </div>
                       </div>
 
                       {/* Customer Dropdown */}
                       {showCustomerDropdown && (
-                        <div className="absolute z-50 w-full mt-1 bg-gray-700 border border-gray-600 rounded-lg shadow-lg max-h-64 overflow-y-auto">
+                        <div className="absolute z-50 w-full mt-1 bg-gray-700 border border-gray-600 rounded-lg shadow-xl max-h-64 overflow-y-auto animate-in slide-in-from-top-2 duration-200">
                           {/* Create New Customer Option */}
                           <button
                             type="button"
                             onClick={handleCreateNewCustomer}
-                            className="w-full px-4 py-3 text-left hover:bg-gray-600 transition-colors border-b border-gray-600 flex items-center"
+                            className="w-full px-4 py-3 text-left hover:bg-gray-600 transition-colors border-b border-gray-600 flex items-center group/create"
                           >
-                            <Plus className="w-4 h-4 mr-3 text-green-400" />
+                            <Plus className="w-4 h-4 mr-3 text-green-400 group-hover/create:scale-110 transition-transform" />
                             <div>
                               <div className="text-green-400 font-medium">Create New Customer</div>
                               {customerSearch.trim() && (
@@ -312,9 +380,9 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ onClose, onSubmit, editingInv
                                 key={customer.id}
                                 type="button"
                                 onClick={() => handleCustomerSelect(customer.id)}
-                                className="w-full px-4 py-3 text-left hover:bg-gray-600 transition-colors flex items-center"
+                                className="w-full px-4 py-3 text-left hover:bg-gray-600 transition-all duration-150 flex items-center group/customer hover:pl-6"
                               >
-                                <User className="w-4 h-4 mr-3 text-blue-400" />
+                                <User className="w-4 h-4 mr-3 text-blue-400 group-hover/customer:scale-110 transition-transform" />
                                 <div className="flex-1">
                                   <div className="flex items-center justify-between">
                                     <span className="text-white font-medium">{customer.name}</span>
@@ -332,11 +400,12 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ onClose, onSubmit, editingInv
                               </button>
                             ))
                           ) : customerSearch.trim() ? (
-                            <div className="px-4 py-3 text-gray-400 text-center">
+                            <div className="px-4 py-3 text-gray-400 text-center italic">
                               No customers found matching "{customerSearch}"
+                              <div className="text-xs mt-1">Try creating a new customer above</div>
                             </div>
                           ) : (
-                            <div className="px-4 py-3 text-gray-400 text-center">
+                            <div className="px-4 py-3 text-gray-400 text-center italic">
                               Start typing to search customers
                             </div>
                           )}
@@ -580,6 +649,94 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ onClose, onSubmit, editingInv
                   </div>
                 </div>
               </div>
+
+              {/* Section 6: Attachments */}
+              <div>
+                <h3 className="text-lg font-semibold text-white mb-4 border-b border-gray-600 pb-2">
+                  Supporting Documents & Attachments
+                </h3>
+                
+                {/* Upload Area */}
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Upload Images (Supporting Documents)
+                  </label>
+                  <div className="flex items-center space-x-4">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      multiple
+                      accept="image/*"
+                      onChange={handleFileUpload}
+                      className="hidden"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                    >
+                      <Upload className="w-4 h-4 mr-2" />
+                      Upload Images
+                    </button>
+                    <span className="text-sm text-gray-400">
+                      {attachments.length} file(s) attached
+                    </span>
+                  </div>
+                </div>
+
+                {/* Attachments List */}
+                {attachments.length > 0 && (
+                  <div className="space-y-3">
+                    <h4 className="text-md font-medium text-white">Attached Files:</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {attachments.map((file, index) => (
+                        <div key={index} className="bg-gray-700 rounded-lg p-4 border border-gray-600">
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="flex items-center">
+                              <Image className="w-5 h-5 text-blue-400 mr-2" />
+                              <div>
+                                <p className="text-white text-sm font-medium truncate max-w-32">
+                                  {file.name}
+                                </p>
+                                <p className="text-gray-400 text-xs">
+                                  {(file.size / 1024 / 1024).toFixed(2)} MB
+                                </p>
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => removeAttachment(index)}
+                              className="text-red-400 hover:text-red-300 transition-colors"
+                              title="Remove attachment"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                          
+                          <div className="flex space-x-2">
+                            <button
+                              type="button"
+                              onClick={() => previewAttachment(file)}
+                              className="flex-1 flex items-center justify-center px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded transition-colors"
+                            >
+                              <Eye className="w-3 h-3 mr-1" />
+                              Preview
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => downloadAttachment(file)}
+                              className="flex-1 flex items-center justify-center px-2 py-1 bg-green-600 hover:bg-green-700 text-white text-xs rounded transition-colors"
+                            >
+                              <Download className="w-3 h-3 mr-1" />
+                              Download
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Invoice Items Section */}
@@ -707,6 +864,29 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ onClose, onSubmit, editingInv
           </form>
         </div>
       </div>
+
+      {/* Image Preview Modal */}
+      {previewImage && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-[70] p-4"
+          onClick={() => setPreviewImage(null)}
+        >
+          <div className="relative max-w-4xl max-h-[90vh] w-full h-full flex items-center justify-center">
+            <button
+              onClick={() => setPreviewImage(null)}
+              className="absolute top-4 right-4 text-white hover:text-gray-300 transition-colors z-10 bg-black bg-opacity-50 rounded-full p-2"
+            >
+              <X className="w-6 h-6" />
+            </button>
+            <img
+              src={previewImage}
+              alt="Preview"
+              className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Create New Customer Modal */}
       {showCreateCustomer && (
