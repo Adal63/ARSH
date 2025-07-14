@@ -87,7 +87,7 @@ const Invoices: React.FC = () => {
 
   const getCustomerName = (customerId: string) => {
     const customer = customers.find(c => c.id === customerId);
-    return customer ? customer.name : 'Unknown Customer';
+    return customer ? customer.name : 'Customer Not Found';
   };
 
   const handleSendInvoice = (id: string) => {

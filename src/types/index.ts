@@ -48,6 +48,7 @@ export interface Invoice {
   items: InvoiceItem[];
   created: Date;
   attachments?: File[];
+  lastUpdated?: Date;
 }
 
 export interface InvoiceItem {

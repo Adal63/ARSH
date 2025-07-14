@@ -86,6 +86,17 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ onClose, onSubmit, editingInv
     }
   }, [showCustomerDropdown]);
 
+  // Real-time customer data sync
+  useEffect(() => {
+    if (formData.customerId) {
+      const currentCustomer = customers.find(c => c.id === formData.customerId);
+      if (currentCustomer && selectedCustomer?.id === formData.customerId) {
+        // Customer data might have been updated in CRM, refresh the display
+        setCustomerSearch('');
+      }
+    }
+  }, [customers, formData.customerId]);
+
   const [items, setItems] = useState<InvoiceItem[]>(
     editingInvoice?.items || [
       { id: '1', description: '', quantity: 1, rate: 0, amount: 0 }
