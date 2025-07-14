@@ -52,10 +52,30 @@ export const useAccounting = () => {
     setCustomers(prev => prev.map(cust => 
       cust.id === id ? { ...cust, ...updates } : cust
     ));
+    
+    // Update any invoices that reference this customer
+    setInvoices(prev => prev.map(invoice => {
+      if (invoice.customerId === id) {
+        // If customer data is used in invoice, we might want to trigger a refresh
+        // For now, we'll just ensure the invoice knows the customer data changed
+        return { ...invoice, lastUpdated: new Date() };
+      }
+      return invoice;
+    }));
   };
 
   const deleteCustomer = (id: string) => {
     setCustomers(prev => prev.filter(cust => cust.id !== id));
+    
+    // Handle invoices that reference the deleted customer
+    setInvoices(prev => prev.map(invoice => {
+      if (invoice.customerId === id) {
+        // Option 1: Remove customer reference
+        return { ...invoice, customerId: undefined };
+        // Option 2: You could also delete the invoice or mark it as orphaned
+      }
+      return invoice;
+    }));
   };
 
   // Transaction management
