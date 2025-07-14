@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useAccounting } from '../hooks/useAccounting';
-import { Plus, Trash2, X, Search, ChevronDown, User, Upload, Image, FileText, Download, Eye } from 'lucide-react';
+import { Plus, Trash2, X, Search, ChevronDown, User, Upload, Image, FileText, Download, Eye, Edit3 } from 'lucide-react';
 import { InvoiceItem } from '../types';
+import TermsDesigner from './TermsDesigner';
 
 interface InvoiceFormProps {
   onClose: () => void;
@@ -26,6 +27,9 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ onClose, onSubmit, editingInv
     editingInvoice?.attachments || []
   );
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  
+  // Terms Designer state
+  const [showTermsDesigner, setShowTermsDesigner] = useState(false);
   
   const [newCustomerData, setNewCustomerData] = useState({
     name: '',
@@ -223,6 +227,11 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ onClose, onSubmit, editingInv
     };
 
     onSubmit(invoiceData);
+  };
+
+  const handleTermsSave = (terms: string, design: any) => {
+    setFormData({ ...formData, termsConditions: terms });
+    setShowTermsDesigner(false);
   };
 
   return (
@@ -639,13 +648,29 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ onClose, onSubmit, editingInv
                     <label className="block text-sm font-medium text-gray-300 mb-2">
                       Terms & Conditions
                     </label>
-                    <textarea
-                      value={formData.termsConditions}
-                      onChange={(e) => setFormData({ ...formData, termsConditions: e.target.value })}
-                      rows={4}
-                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Enter terms and conditions..."
-                    />
+                    <div className="space-y-2">
+                      <div className="flex items-center space-x-2">
+                        <textarea
+                          value={formData.termsConditions}
+                          onChange={(e) => setFormData({ ...formData, termsConditions: e.target.value })}
+                          rows={4}
+                          className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          placeholder="Enter terms and conditions..."
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowTermsDesigner(true)}
+                          className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors flex items-center"
+                          title="Open Terms Designer"
+                        >
+                          <Edit3 className="w-4 h-4 mr-2" />
+                          Design
+                        </button>
+                      </div>
+                      <p className="text-xs text-gray-400">
+                        Use the Design button to create professional terms & conditions with custom layouts, colors, and styling
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1022,6 +1047,15 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ onClose, onSubmit, editingInv
             </div>
           </div>
         </div>
+      )}
+
+      {/* Terms Designer Modal */}
+      {showTermsDesigner && (
+        <TermsDesigner
+          initialTerms={formData.termsConditions}
+          onSave={handleTermsSave}
+          onClose={() => setShowTermsDesigner(false)}
+        />
       )}
     </div>
   );
