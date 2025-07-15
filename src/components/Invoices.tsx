@@ -13,6 +13,8 @@ const Invoices: React.FC = () => {
   const [viewingInvoice, setViewingInvoice] = useState<Invoice | null>(null);
   const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
   const [showColumnSettings, setShowColumnSettings] = useState(false);
+  const [selectedSearchColumn, setSelectedSearchColumn] = useState('all');
+  const [columnSearchTerm, setColumnSearchTerm] = useState('');
   const [draggedItem, setDraggedItem] = useState<string | null>(null);
   const [dragOverItem, setDragOverItem] = useState<string | null>(null);
   const [showTermsTooltip, setShowTermsTooltip] = useState<string | null>(null);
@@ -72,7 +74,15 @@ const Invoices: React.FC = () => {
     const matchesSearch = invoice.number.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          customer?.name.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'All' || invoice.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    
+    // Column-specific search
+    let matchesColumnSearch = true;
+    if (columnSearchTerm.trim()) {
+      const searchValue = getCellValue(invoice, selectedSearchColumn).toString().toLowerCase();
+      matchesColumnSearch = searchValue.includes(columnSearchTerm.toLowerCase());
+    }
+    
+    return matchesSearch && matchesStatus && matchesColumnSearch;
   });
 
   const getStatusColor = (status: string) => {
@@ -304,31 +314,133 @@ const Invoices: React.FC = () => {
       </div>
 
       {/* Search and Filter */}
-      <div className="flex flex-col md:flex-row gap-4">
+      <div className="space-y-4">
+        {/* Global Search */}
         <div className="relative flex-1">
           <Search className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
           <input
             type="text"
-            placeholder="Search invoices..."
+            placeholder="Search all invoices..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-10 pr-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
-        <div className="relative">
-          <Filter className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="pl-10 pr-8 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="All">All Status</option>
-            <option value="Draft">Draft</option>
-            <option value="Sent">Sent</option>
-            <option value="Paid">Paid</option>
-            <option value="Overdue">Overdue</option>
-          </select>
+        
+        {/* Advanced Filters */}
+        <div className="flex flex-col md:flex-row gap-4">
+          {/* Column-Specific Search */}
+          <div className="flex-1 flex gap-2">
+            <div className="relative">
+              <select
+                value={selectedSearchColumn}
+                onChange={(e) => {
+                  setSelectedSearchColumn(e.target.value);
+                  setColumnSearchTerm(''); // Clear search when changing column
+                }}
+                className="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[140px]"
+              >
+                <option value="all">All Columns</option>
+                {orderedVisibleColumns.map(columnKey => (
+                  <option key={columnKey} value={columnKey}>
+                    {getColumnLabel(columnKey)}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder={selectedSearchColumn === 'all' ? 'Disabled - use global search above' : `Search in ${getColumnLabel(selectedSearchColumn)}...`}
+                value={columnSearchTerm}
+                onChange={(e) => setColumnSearchTerm(e.target.value)}
+                disabled={selectedSearchColumn === 'all'}
+                className={`w-full pl-9 pr-4 py-2 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  selectedSearchColumn === 'all' 
+                    ? 'bg-gray-700 cursor-not-allowed opacity-50' 
+                    : 'bg-gray-800'
+                }`}
+              />
+              {columnSearchTerm && selectedSearchColumn !== 'all' && (
+                <button
+                  onClick={() => setColumnSearchTerm('')}
+                  className="absolute right-3 top-3 text-gray-400 hover:text-white transition-colors"
+                  title="Clear column search"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          </div>
+          
+          {/* Status Filter */}
+          <div className="relative">
+            <Filter className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="pl-10 pr-8 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[120px]"
+            >
+              <option value="All">All Status</option>
+              <option value="Draft">Draft</option>
+              <option value="Sent">Sent</option>
+              <option value="Paid">Paid</option>
+              <option value="Overdue">Overdue</option>
+            </select>
+          </div>
         </div>
+        
+        {/* Active Filters Display */}
+        {(searchTerm || (columnSearchTerm && selectedSearchColumn !== 'all') || statusFilter !== 'All') && (
+          <div className="flex flex-wrap gap-2 items-center">
+            <span className="text-sm text-gray-400">Active filters:</span>
+            {searchTerm && (
+              <span className="px-3 py-1 bg-blue-600 text-white text-sm rounded-full flex items-center">
+                Global: "{searchTerm}"
+                <button
+                  onClick={() => setSearchTerm('')}
+                  className="ml-2 hover:bg-blue-700 rounded-full p-0.5 transition-colors"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+            {columnSearchTerm && selectedSearchColumn !== 'all' && (
+              <span className="px-3 py-1 bg-green-600 text-white text-sm rounded-full flex items-center">
+                {getColumnLabel(selectedSearchColumn)}: "{columnSearchTerm}"
+                <button
+                  onClick={() => setColumnSearchTerm('')}
+                  className="ml-2 hover:bg-green-700 rounded-full p-0.5 transition-colors"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+            {statusFilter !== 'All' && (
+              <span className="px-3 py-1 bg-purple-600 text-white text-sm rounded-full flex items-center">
+                Status: {statusFilter}
+                <button
+                  onClick={() => setStatusFilter('All')}
+                  className="ml-2 hover:bg-purple-700 rounded-full p-0.5 transition-colors"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+            <button
+              onClick={() => {
+                setSearchTerm('');
+                setColumnSearchTerm('');
+                setSelectedSearchColumn('all');
+                setStatusFilter('All');
+              }}
+              className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm rounded-full transition-colors"
+            >
+              Clear All
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Invoice Stats */}
@@ -338,7 +450,7 @@ const Invoices: React.FC = () => {
             <div>
               <p className="text-gray-400 text-sm">Total Invoices</p>
               <p className="text-2xl font-bold text-white">{invoices.length}</p>
-            </div>
+            <span className="text-2xl font-bold text-white">{filteredInvoices.length}</span>
           </div>
         </div>
         <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
@@ -346,7 +458,7 @@ const Invoices: React.FC = () => {
             <div>
               <p className="text-gray-400 text-sm">Paid</p>
               <p className="text-2xl font-bold text-green-400">
-                {invoices.filter(i => i.status === 'Paid').length}
+                {filteredInvoices.filter(i => i.status === 'Paid').length}
               </p>
             </div>
           </div>
@@ -356,7 +468,7 @@ const Invoices: React.FC = () => {
             <div>
               <p className="text-gray-400 text-sm">Pending</p>
               <p className="text-2xl font-bold text-blue-400">
-                {invoices.filter(i => i.status === 'Sent').length}
+                {filteredInvoices.filter(i => i.status === 'Sent').length}
               </p>
             </div>
           </div>
@@ -366,7 +478,7 @@ const Invoices: React.FC = () => {
             <div>
               <p className="text-gray-400 text-sm">Total Amount</p>
               <p className="text-2xl font-bold text-white">
-                ${invoices.reduce((sum, inv) => sum + inv.amount, 0).toLocaleString()}
+                ${filteredInvoices.reduce((sum, inv) => sum + inv.amount, 0).toLocaleString()}
               </p>
             </div>
           </div>
