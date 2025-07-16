@@ -233,7 +233,7 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ onClose, onSubmit, editingInv
       date: new Date(formData.date),
       dueDate: new Date(formData.dueDate),
       items: items.filter(item => item.description.trim() !== ''),
-      amount: getTotalAmount(),
+      total: getTotalAmount(),
       attachments: attachments
     };
 
