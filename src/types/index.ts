@@ -229,3 +229,267 @@ export interface Payment {
   created: Date;
   createdBy: string;
 }
+
+// UAE FTA-Compliant Module Types
+
+// Customer Module - UAE FTA Compliant
+export interface UAECustomer {
+  id: string;
+  customerName: string;
+  trn: string; // Tax Registration Number
+  contactDetails: {
+    phone: string;
+    email: string;
+    website?: string;
+  };
+  billingAddress: {
+    street: string;
+    city: string;
+    emirate: string;
+    country: string;
+    poBox?: string;
+  };
+  shippingAddress?: {
+    street: string;
+    city: string;
+    emirate: string;
+    country: string;
+    poBox?: string;
+  };
+  customerType: 'VAT_REGISTERED' | 'NON_VAT';
+  defaultVATTreatment: 'STANDARD_RATED' | 'ZERO_RATED' | 'EXEMPT';
+  accountGroup: 'DOMESTIC' | 'GCC' | 'EXPORT';
+  paymentTerms: string;
+  creditLimit: number;
+  isActive: boolean;
+  created: Date;
+  lastUpdated: Date;
+}
+
+// Supplier Module - UAE FTA Compliant
+export interface UAESupplier {
+  id: string;
+  supplierName: string;
+  trn: string;
+  contactDetails: {
+    phone: string;
+    email: string;
+    website?: string;
+  };
+  address: {
+    street: string;
+    city: string;
+    emirate: string;
+    country: string;
+    poBox?: string;
+  };
+  supplierType: 'LOCAL' | 'GCC' | 'OVERSEAS';
+  defaultVATTreatment: 'STANDARD_RATED' | 'ZERO_RATED' | 'EXEMPT' | 'REVERSE_CHARGE';
+  paymentTerms: string;
+  bankDetails?: {
+    bankName: string;
+    accountNumber: string;
+    iban: string;
+    swiftCode: string;
+  };
+  isActive: boolean;
+  created: Date;
+  lastUpdated: Date;
+}
+
+// Sales Quotation Module
+export interface SalesQuotation {
+  id: string;
+  quotationNumber: string;
+  quotationDate: Date;
+  validityDate: Date;
+  customerId: string;
+  customerTRN: string;
+  items: QuotationItem[];
+  subtotal: number;
+  vatAmount: number;
+  totalAmount: number;
+  status: 'PENDING' | 'CONVERTED' | 'EXPIRED' | 'CANCELLED';
+  notes?: string;
+  terms?: string;
+  convertedToSalesOrder?: string;
+  created: Date;
+  createdBy: string;
+}
+
+export interface QuotationItem {
+  id: string;
+  description: string;
+  quantity: number;
+  rate: number;
+  discount: number;
+  vatRate: number;
+  vatTreatment: 'STANDARD_RATED' | 'ZERO_RATED' | 'EXEMPT';
+  amount: number;
+  vatAmount: number;
+  totalAmount: number;
+}
+
+// Purchase Invoice Module
+export interface PurchaseInvoice {
+  id: string;
+  invoiceNumber: string;
+  invoiceDate: Date;
+  supplierId: string;
+  supplierTRN: string;
+  items: PurchaseInvoiceItem[];
+  subtotal: number;
+  vatAmount: number;
+  totalAmount: number;
+  inputVATRecoverable: number;
+  reverseChargeApplicable: boolean;
+  status: 'PENDING' | 'APPROVED' | 'PAID';
+  paymentDueDate: Date;
+  notes?: string;
+  attachments?: File[];
+  created: Date;
+  createdBy: string;
+}
+
+export interface PurchaseInvoiceItem {
+  id: string;
+  description: string;
+  quantity: number;
+  rate: number;
+  discount: number;
+  vatRate: number;
+  vatTreatment: 'STANDARD_RATED' | 'ZERO_RATED' | 'EXEMPT' | 'REVERSE_CHARGE';
+  amount: number;
+  vatAmount: number;
+  totalAmount: number;
+}
+
+// Purchase Quotation Module
+export interface PurchaseQuotation {
+  id: string;
+  quotationNumber: string;
+  quotationDate: Date;
+  validityDate: Date;
+  supplierId: string;
+  items: PurchaseQuotationItem[];
+  subtotal: number;
+  vatAmount: number;
+  totalAmount: number;
+  status: 'PENDING' | 'CONVERTED' | 'EXPIRED' | 'REJECTED';
+  notes?: string;
+  convertedToPurchaseOrder?: string;
+  created: Date;
+  createdBy: string;
+}
+
+export interface PurchaseQuotationItem {
+  id: string;
+  description: string;
+  quantity: number;
+  rate: number;
+  discount: number;
+  vatRate: number;
+  vatTreatment: 'STANDARD_RATED' | 'ZERO_RATED' | 'EXEMPT';
+  amount: number;
+  vatAmount: number;
+  totalAmount: number;
+}
+
+// Cash Book Module
+export interface CashBookEntry {
+  id: string;
+  date: Date;
+  voucherNumber: string;
+  particulars: string;
+  debitAmount: number;
+  creditAmount: number;
+  balance: number;
+  narration: string;
+  cashAccount: string;
+  vatApplicable: boolean;
+  vatAmount?: number;
+  vatTreatment?: 'STANDARD_RATED' | 'ZERO_RATED' | 'EXEMPT';
+  linkedTransactionId?: string;
+  created: Date;
+  createdBy: string;
+}
+
+// Bank Module
+export interface BankAccount {
+  id: string;
+  bankName: string;
+  branchName: string;
+  accountNumber: string;
+  accountType: 'CURRENT' | 'SAVINGS' | 'FIXED_DEPOSIT';
+  ifscCode?: string;
+  swiftCode?: string;
+  iban: string;
+  openingBalance: number;
+  currentBalance: number;
+  isActive: boolean;
+  created: Date;
+}
+
+export interface BankTransaction {
+  id: string;
+  bankAccountId: string;
+  transactionDate: Date;
+  transactionType: 'DEBIT' | 'CREDIT';
+  amount: number;
+  balance: number;
+  description: string;
+  reference: string;
+  chequeNumber?: string;
+  vatApplicable: boolean;
+  vatAmount?: number;
+  vatTreatment?: 'STANDARD_RATED' | 'ZERO_RATED' | 'EXEMPT';
+  reconciled: boolean;
+  reconciledDate?: Date;
+  created: Date;
+  createdBy: string;
+}
+
+// Inter-Account Transfer Module
+export interface InterAccountTransfer {
+  id: string;
+  transferNumber: string;
+  transferDate: Date;
+  fromAccount: {
+    id: string;
+    name: string;
+    type: 'CASH' | 'BANK';
+  };
+  toAccount: {
+    id: string;
+    name: string;
+    type: 'CASH' | 'BANK';
+  };
+  amount: number;
+  narration: string;
+  status: 'PENDING' | 'COMPLETED' | 'CANCELLED';
+  approvedBy?: string;
+  approvalDate?: Date;
+  created: Date;
+  createdBy: string;
+}
+
+// VAT Return Module
+export interface VATReturn {
+  id: string;
+  returnPeriod: string; // e.g., "2024-Q1"
+  startDate: Date;
+  endDate: Date;
+  standardRatedSales: number;
+  zeroRatedSales: number;
+  exemptSales: number;
+  outputVAT: number;
+  standardRatedPurchases: number;
+  zeroRatedPurchases: number;
+  exemptPurchases: number;
+  inputVAT: number;
+  netVATPayable: number;
+  status: 'DRAFT' | 'SUBMITTED' | 'APPROVED';
+  submissionDate?: Date;
+  created: Date;
+  createdBy: string;
+}
