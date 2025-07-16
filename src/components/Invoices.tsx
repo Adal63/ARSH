@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useAccounting } from '../hooks/useAccounting';
 import { Invoice, InvoiceStatus } from '../types';
-import { InvoiceForm } from './InvoiceForm';
+import InvoiceForm from './InvoiceForm';
 import { InvoiceView } from './InvoiceView';
 import { 
   Plus, 
