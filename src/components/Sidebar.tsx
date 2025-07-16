@@ -8,7 +8,10 @@ import {
   Brain,
   DollarSign,
   Settings,
-  Home
+  Home,
+  Package,
+  Receipt,
+  Banknote
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -23,6 +26,9 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange }) => {
     { id: 'customers', label: 'CRM', icon: Users },
     { id: 'transactions', label: 'Transactions', icon: CreditCard },
     { id: 'invoices', label: 'Invoices', icon: FileText },
+    { id: 'inventory', label: 'Inventory', icon: Package },
+    { id: 'receipts', label: 'Receipts', icon: Receipt },
+    { id: 'payments', label: 'Payments', icon: Banknote },
     { id: 'reports', label: 'IFRS Reports', icon: TrendingUp },
     { id: 'kpis', label: 'KPIs', icon: DollarSign },
     { id: 'ai', label: 'AI Insights', icon: Brain },

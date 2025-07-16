@@ -5,6 +5,9 @@ import ChartOfAccounts from './components/ChartOfAccounts';
 import CRM from './components/CRM';
 import Transactions from './components/Transactions';
 import { Invoices } from './components/Invoices';
+import Inventory from './components/Inventory';
+import Receipts from './components/Receipts';
+import Payments from './components/Payments';
 import Reports from './components/Reports';
 import KPIs from './components/KPIs';
 import AIInsights from './components/AIInsights';
@@ -24,6 +27,12 @@ function App() {
         return <Transactions />;
       case 'invoices':
         return <Invoices />;
+      case 'inventory':
+        return <Inventory />;
+      case 'receipts':
+        return <Receipts />;
+      case 'payments':
+        return <Payments />;
       case 'reports':
         return <Reports />;
       case 'kpis':

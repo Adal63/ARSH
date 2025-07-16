@@ -3,6 +3,7 @@ import { useAccounting } from '../hooks/useAccounting';
 import { Invoice, InvoiceStatus } from '../types';
 import InvoiceForm from './InvoiceForm';
 import InvoiceView from './InvoiceView';
+import UAEEInvoiceForm from './UAEEInvoiceForm';
 import { 
   Plus, 
   Search, 
@@ -16,12 +17,14 @@ import {
   FileText,
   DollarSign,
   Calendar,
-  User
+  User,
+  Flag
 } from 'lucide-react';
 
 export function Invoices() {
   const { invoices, customers, deleteInvoice } = useAccounting();
   const [showForm, setShowForm] = useState(false);
+  const [showUAEForm, setShowUAEForm] = useState(false);
   const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
   const [viewingInvoice, setViewingInvoice] = useState<Invoice | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -178,6 +181,18 @@ export function Invoices() {
     );
   }
 
+  if (showUAEForm) {
+    return (
+      <UAEEInvoiceForm
+        invoice={editingInvoice}
+        onClose={() => {
+          setShowUAEForm(false);
+          setEditingInvoice(null);
+        }}
+      />
+    );
+  }
+
   if (viewingInvoice) {
     return (
       <InvoiceView
@@ -205,6 +220,13 @@ export function Invoices() {
         >
           <Plus className="w-4 h-4" />
           New Invoice
+        </button>
+        <button
+          onClick={() => setShowUAEForm(true)}
+          className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
+        >
+          <Flag className="w-4 h-4" />
+          UAE E-Invoice
         </button>
       </div>
 
