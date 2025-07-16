@@ -11,7 +11,13 @@ import {
   Home,
   Package,
   Receipt,
-  Banknote
+  Banknote,
+  Building,
+  Truck,
+  FileCheck,
+  ShoppingCart,
+  Wallet,
+  ArrowRightLeft
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -29,6 +35,13 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange }) => {
     { id: 'inventory', label: 'Inventory', icon: Package },
     { id: 'receipts', label: 'Receipts', icon: Receipt },
     { id: 'payments', label: 'Payments', icon: Banknote },
+    { id: 'uae-customers', label: 'UAE Customers', icon: Building },
+    { id: 'uae-suppliers', label: 'UAE Suppliers', icon: Truck },
+    { id: 'sales-quotations', label: 'Sales Quotations', icon: FileCheck },
+    { id: 'purchase-invoices', label: 'Purchase Invoices', icon: ShoppingCart },
+    { id: 'cash-book', label: 'Cash Book', icon: Wallet },
+    { id: 'bank-module', label: 'Bank Management', icon: CreditCard },
+    { id: 'inter-transfer', label: 'Inter-Account Transfer', icon: ArrowRightLeft },
     { id: 'reports', label: 'IFRS Reports', icon: TrendingUp },
     { id: 'kpis', label: 'KPIs', icon: DollarSign },
     { id: 'ai', label: 'AI Insights', icon: Brain },

@@ -11,6 +11,13 @@ import Payments from './components/Payments';
 import Reports from './components/Reports';
 import KPIs from './components/KPIs';
 import AIInsights from './components/AIInsights';
+import UAECustomers from './components/UAECustomers';
+import UAESuppliers from './components/UAESuppliers';
+import SalesQuotations from './components/SalesQuotations';
+import PurchaseInvoices from './components/PurchaseInvoices';
+import CashBook from './components/CashBook';
+import BankModule from './components/BankModule';
+import InterAccountTransferModule from './components/InterAccountTransfer';
 
 function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -39,6 +46,20 @@ function App() {
         return <KPIs />;
       case 'ai':
         return <AIInsights />;
+      case 'uae-customers':
+        return <UAECustomers />;
+      case 'uae-suppliers':
+        return <UAESuppliers />;
+      case 'sales-quotations':
+        return <SalesQuotations />;
+      case 'purchase-invoices':
+        return <PurchaseInvoices />;
+      case 'cash-book':
+        return <CashBook />;
+      case 'bank-module':
+        return <BankModule />;
+      case 'inter-transfer':
+        return <InterAccountTransferModule />;
       case 'settings':
         return (
           <div className="p-6">
