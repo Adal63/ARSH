@@ -4,7 +4,7 @@ import Dashboard from './components/Dashboard';
 import ChartOfAccounts from './components/ChartOfAccounts';
 import CRM from './components/CRM';
 import Transactions from './components/Transactions';
-import Invoices from './components/Invoices';
+import { Invoices } from './components/Invoices';
 import Reports from './components/Reports';
 import KPIs from './components/KPIs';
 import AIInsights from './components/AIInsights';
