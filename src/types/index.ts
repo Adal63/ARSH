@@ -43,13 +43,15 @@ export interface Invoice {
   customerId: string;
   date: Date;
   dueDate: Date;
-  amount: number;
+  total: number;
   status: 'Draft' | 'Sent' | 'Paid' | 'Overdue';
   items: InvoiceItem[];
   created: Date;
   attachments?: File[];
   lastUpdated?: Date;
 }
+
+export type InvoiceStatus = 'Draft' | 'Sent' | 'Paid' | 'Overdue';
 
 export interface InvoiceItem {
   id: string;
