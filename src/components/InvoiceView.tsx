@@ -114,7 +114,7 @@ const InvoiceView: React.FC<InvoiceViewProps> = ({
               {/* Center - Invoice Details */}
               <div>
                 <div className="text-sm space-y-1">
-                  <p><strong>Inv. No:</strong> {invoice.number}</p>
+                  <p><strong>Inv. No:</strong> {invoice.invoiceNumber}</p>
                   <p><strong>Inv. Date:</strong> {invoice.date.toLocaleDateString()}</p>
                   <p><strong>LPO. Date:</strong> --</p>
                   <p><strong>Job No.:</strong> 25190</p>
