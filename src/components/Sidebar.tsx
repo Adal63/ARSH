@@ -1,61 +1,39 @@
 import React from 'react';
-import { 
-  BarChart3, 
-  Users, 
-  CreditCard, 
-  FileText, 
-  TrendingUp, 
-  Brain,
-  DollarSign,
-  Settings,
-  Home,
-  Package,
-  Receipt,
-  Banknote,
-  Building,
-  Truck,
-  FileCheck,
-  ShoppingCart,
-  Wallet,
-  ArrowRightLeft
-} from 'lucide-react';
+import { Settings } from 'lucide-react';
 
 interface SidebarProps {
   activeTab: string;
   onTabChange: (tab: string) => void;
+  availableSections: any[];
+  visibleSections: string[];
+  sectionOrder: string[];
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange }) => {
-  const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: Home },
-    { id: 'accounts', label: 'Chart of Accounts', icon: BarChart3 },
-    { id: 'customers', label: 'CRM', icon: Users },
-    { id: 'transactions', label: 'Transactions', icon: CreditCard },
-    { id: 'invoices', label: 'Invoices', icon: FileText },
-    { id: 'inventory', label: 'Inventory', icon: Package },
-    { id: 'receipts', label: 'Receipts', icon: Receipt },
-    { id: 'payments', label: 'Payments', icon: Banknote },
-    { id: 'uae-customers', label: 'UAE Customers', icon: Building },
-    { id: 'uae-suppliers', label: 'UAE Suppliers', icon: Truck },
-    { id: 'sales-quotations', label: 'Sales Quotations', icon: FileCheck },
-    { id: 'purchase-invoices', label: 'Purchase Invoices', icon: ShoppingCart },
-    { id: 'cash-book', label: 'Cash Book', icon: Wallet },
-    { id: 'bank-module', label: 'Bank Management', icon: CreditCard },
-    { id: 'inter-transfer', label: 'Inter-Account Transfer', icon: ArrowRightLeft },
-    { id: 'reports', label: 'IFRS Reports', icon: TrendingUp },
-    { id: 'kpis', label: 'KPIs', icon: DollarSign },
-    { id: 'ai', label: 'AI Insights', icon: Brain },
-    { id: 'settings', label: 'Settings', icon: Settings }
-  ];
+const Sidebar: React.FC<SidebarProps> = ({ 
+  activeTab, 
+  onTabChange, 
+  availableSections, 
+  visibleSections, 
+  sectionOrder 
+}) => {
+  // Filter and order menu items based on user preferences
+  const getOrderedVisibleSections = () => {
+    return sectionOrder
+      .filter(sectionId => visibleSections.includes(sectionId))
+      .map(sectionId => availableSections.find(section => section.id === sectionId))
+      .filter(Boolean);
+  };
+
+  const menuItems = getOrderedVisibleSections();
 
   return (
-    <div className="w-64 bg-gray-900 text-white min-h-screen">
+    <div className="w-64 bg-gray-900 text-white min-h-screen flex flex-col">
       <div className="p-6">
         <h1 className="text-2xl font-bold text-blue-400">AccounTech Pro</h1>
         <p className="text-sm text-gray-400 mt-1">Advanced Accounting Suite</p>
       </div>
       
-      <nav className="mt-8">
+      <nav className="mt-8 flex-1 overflow-y-auto">
         {menuItems.map((item) => {
           const Icon = item.icon;
           return (
@@ -74,6 +52,26 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange }) => {
           );
         })}
       </nav>
+      
+      {/* Customize Button */}
+      <div className="p-4 border-t border-gray-800">
+        <button
+          onClick={() => onTabChange('settings')}
+          className={`w-full flex items-center px-4 py-3 text-left transition-colors rounded-lg ${
+            activeTab === 'settings'
+              ? 'bg-blue-600 text-white'
+              : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+          }`}
+        >
+          <Settings className="w-5 h-5 mr-3" />
+          <div>
+            <div className="font-medium">Customize Interface</div>
+            <div className="text-xs opacity-75">
+              {visibleSections.length}/{availableSections.length} sections
+            </div>
+          </div>
+        </button>
+      </div>
     </div>
   );
 };
