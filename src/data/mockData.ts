@@ -166,12 +166,12 @@ export const mockTransactions: Transaction[] = [
 export const mockInvoices: Invoice[] = [
   {
     id: '1',
-    number: 'INV-2024-001',
+    invoiceNumber: 'INV-2024-001',
     customerId: '1',
     date: new Date('2024-01-15'),
     dueDate: new Date('2024-02-15'),
     total: 5000,
-    status: 'Paid',
+    status: 'paid',
     items: [
       {
         id: '1',
@@ -185,12 +185,12 @@ export const mockInvoices: Invoice[] = [
   },
   {
     id: '2',
-    number: 'INV-2024-002',
+    invoiceNumber: 'INV-2024-002',
     customerId: '2',
     date: new Date('2024-01-17'),
     dueDate: new Date('2024-02-17'),
     total: 8000,
-    status: 'Sent',
+    status: 'pending',
     items: [
       {
         id: '2',

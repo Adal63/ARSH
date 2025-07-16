@@ -6,11 +6,11 @@ import TermsDesigner from './TermsDesigner';
 
 interface InvoiceFormProps {
   onClose: () => void;
-  onSubmit: (invoiceData: any) => void;
-  editingInvoice?: any;
+  onSubmit?: (invoiceData: any) => void;
+  invoice?: Invoice | null;
 }
 
-const InvoiceForm: React.FC<InvoiceFormProps> = ({ onClose, onSubmit, editingInvoice }) => {
+const InvoiceForm: React.FC<InvoiceFormProps> = ({ onClose, onSubmit, invoice: editingInvoice }) => {
   const { customers, addCustomer } = useAccounting();
   
   // Customer search and creation states
@@ -47,8 +47,8 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ onClose, onSubmit, editingInv
     customerId: editingInvoice?.customerId || '',
     date: editingInvoice?.date?.toISOString().split('T')[0] || new Date().toISOString().split('T')[0],
     dueDate: editingInvoice?.dueDate?.toISOString().split('T')[0] || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    number: editingInvoice?.number || `INV-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`,
-    status: editingInvoice?.status || 'Draft',
+    invoiceNumber: editingInvoice?.invoiceNumber || `INV-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`,
+    status: editingInvoice?.status || 'draft',
     // Additional custom fields
     mjNo: editingInvoice?.mjNo || `MJ-${String(Date.now()).slice(-4)}`,
     salesOrder: editingInvoice?.salesOrder || `SO-${String(Date.now()).slice(-4)}`,
@@ -237,7 +237,9 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ onClose, onSubmit, editingInv
       attachments: attachments
     };
 
-    onSubmit(invoiceData);
+    if (onSubmit) {
+      onSubmit(invoiceData);
+    }
   };
 
   const handleTermsSave = (terms: string, design: any) => {

@@ -104,6 +104,10 @@ export const useAccounting = () => {
     ));
   };
 
+  const deleteInvoice = (id: string) => {
+    setInvoices(prev => prev.filter(inv => inv.id !== id));
+  };
+
   // Financial calculations
   const getTotalAssets = () => {
     return accounts
@@ -155,6 +159,7 @@ export const useAccounting = () => {
     addTransaction,
     addInvoice,
     updateInvoice,
+    deleteInvoice,
     getTotalAssets,
     getTotalLiabilities,
     getTotalEquity,

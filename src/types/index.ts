@@ -39,19 +39,38 @@ export interface Transaction {
 
 export interface Invoice {
   id: string;
-  number: string;
+  invoiceNumber: string;
   customerId: string;
   date: Date;
   dueDate: Date;
   total: number;
-  status: 'Draft' | 'Sent' | 'Paid' | 'Overdue';
+  status: InvoiceStatus;
   items: InvoiceItem[];
   created: Date;
   attachments?: File[];
   lastUpdated?: Date;
+  // Additional fields from InvoiceForm
+  mjNo?: string;
+  salesOrder?: string;
+  salesQuote?: string;
+  description?: string;
+  project?: string;
+  division?: string;
+  closedInvoice?: boolean;
+  withholdingTax?: number;
+  discount?: number;
+  chasisNo?: string;
+  vehicleNo?: string;
+  carModel?: string;
+  serviceKms?: string;
+  termsConditions?: string;
+  costOfSales?: number;
+  approvedBy?: string;
+  createdBy?: string;
+  creditBy?: string;
 }
 
-export type InvoiceStatus = 'Draft' | 'Sent' | 'Paid' | 'Overdue';
+export type InvoiceStatus = 'draft' | 'pending' | 'paid' | 'overdue';
 
 export interface InvoiceItem {
   id: string;
