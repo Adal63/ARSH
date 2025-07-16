@@ -170,7 +170,7 @@ export const mockInvoices: Invoice[] = [
     customerId: '1',
     date: new Date('2024-01-15'),
     dueDate: new Date('2024-02-15'),
-    amount: 5000,
+    total: 5000,
     status: 'Paid',
     items: [
       {
@@ -189,7 +189,7 @@ export const mockInvoices: Invoice[] = [
     customerId: '2',
     date: new Date('2024-01-17'),
     dueDate: new Date('2024-02-17'),
-    amount: 8000,
+    total: 8000,
     status: 'Sent',
     items: [
       {
