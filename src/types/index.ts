@@ -19,7 +19,7 @@ export interface Customer {
   company: string;
   status: 'Active' | 'Inactive' | 'Prospect';
   totalRevenue: number;
-  lastContact: Date;
+  lastContact?: Date;
   created: Date;
   notes: string;
 }

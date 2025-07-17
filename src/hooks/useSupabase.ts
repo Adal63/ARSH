@@ -90,7 +90,23 @@ export const useSupabase = () => {
         .order('name', { ascending: true });
       
       if (customersError) throw new Error(`Error fetching customers: ${customersError.message}`);
-      setCustomers(customersData || []);
+      
+      // Transform customer data to match interface
+      const transformedCustomers = (customersData || []).map(customer => ({
+        id: customer.id,
+        name: customer.name,
+        email: customer.email,
+        phone: customer.phone,
+        address: customer.address,
+        company: customer.company,
+        status: customer.status,
+        totalRevenue: customer.total_revenue || 0,
+        lastContact: customer.last_contact ? new Date(customer.last_contact) : undefined,
+        created: new Date(customer.created_at),
+        notes: customer.notes || ''
+      }));
+      
+      setCustomers(transformedCustomers);
       
       // Fetch transactions
       const { data: transactionsData, error: transactionsError } = await supabase
@@ -344,8 +360,23 @@ export const useSupabase = () => {
       
       if (error) throw error;
       
-      setCustomers([...customers, data]);
-      return data;
+      // Transform the returned data
+      const transformedCustomer = {
+        id: data.id,
+        name: data.name,
+        email: data.email,
+        phone: data.phone,
+        address: data.address,
+        company: data.company,
+        status: data.status,
+        totalRevenue: data.total_revenue || 0,
+        lastContact: data.last_contact ? new Date(data.last_contact) : undefined,
+        created: new Date(data.created_at),
+        notes: data.notes || ''
+      };
+      
+      setCustomers([...customers, transformedCustomer]);
+      return transformedCustomer;
     } catch (error: any) {
       console.error('Error adding customer:', error);
       throw error;
@@ -373,8 +404,23 @@ export const useSupabase = () => {
       
       if (error) throw error;
       
-      setCustomers(customers.map(cust => cust.id === id ? data : cust));
-      return data;
+      // Transform the returned data
+      const transformedCustomer = {
+        id: data.id,
+        name: data.name,
+        email: data.email,
+        phone: data.phone,
+        address: data.address,
+        company: data.company,
+        status: data.status,
+        totalRevenue: data.total_revenue || 0,
+        lastContact: data.last_contact ? new Date(data.last_contact) : undefined,
+        created: new Date(data.created_at),
+        notes: data.notes || ''
+      };
+      
+      setCustomers(customers.map(cust => cust.id === id ? transformedCustomer : cust));
+      return transformedCustomer;
     } catch (error: any) {
       console.error('Error updating customer:', error);
       throw error;
