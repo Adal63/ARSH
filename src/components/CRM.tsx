@@ -240,7 +240,7 @@ const CRM: React.FC = () => {
                 <p className="text-gray-400 text-sm">{customer.company}</p>
               </div>
               <span className={`px-2 py-1 text-xs rounded-full ${getStatusColor(customer.status)}`}>
-                {customer.status}
+                {customer.lastContact ? new Date(customer.lastContact).toLocaleDateString() : 'Never'}
               </span>
             </div>
             
