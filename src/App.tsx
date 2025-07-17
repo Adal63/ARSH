@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useEffect, useContext, createContext } from 'react';
+import { useEffect, useContext, createContext, useCallback } from 'react';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
 import LoadingScreen from './components/LoadingScreen';
@@ -43,6 +43,24 @@ import {
 // Create a context for Supabase
 export const SupabaseContext = createContext<ReturnType<typeof useSupabase> | null>(null);
 
+// Custom event listener for Supabase reconnection
+const useSupabaseReconnection = (callback: () => void) => {
+  useEffect(() => {
+    const handleReconnection = () => {
+      console.log('Supabase reconnected, refreshing data...');
+      callback();
+    };
+    
+    window.addEventListener('supabase-reconnected', handleReconnection);
+    window.addEventListener('supabase-network-restored', handleReconnection);
+    
+    return () => {
+      window.removeEventListener('supabase-reconnected', handleReconnection);
+      window.removeEventListener('supabase-network-restored', handleReconnection);
+    };
+  }, [callback]);
+};
+
 function App() {
   const supabase = useSupabase();
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -84,6 +102,15 @@ function App() {
     localStorage.setItem('visibleSections', JSON.stringify(visibleSections));
     localStorage.setItem('sectionOrder', JSON.stringify(sectionOrder));
   }, [visibleSections, sectionOrder]);
+
+  // Setup reconnection handler
+  const handleReconnection = useCallback(() => {
+    if (supabase.user) {
+      supabase.fetchAllData();
+    }
+  }, [supabase]);
+  
+  useSupabaseReconnection(handleReconnection);
 
   // Check if user is authenticated
   if (supabase.loading) {
@@ -155,7 +182,14 @@ function App() {
 
   return (
     <SupabaseContext.Provider value={supabase}>
-      <div className="min-h-screen bg-gray-900 flex">
+      <div className="min-h-screen bg-gray-900 flex relative">
+        {/* Offline mode indicator */}
+        {supabase.isOfflineMode && (
+          <div className="absolute top-0 left-0 right-0 bg-yellow-600 text-white text-center py-1 text-sm z-50">
+            Offline Mode - Changes will not be saved to the database
+          </div>
+        )}
+        
         <Sidebar 
           activeTab={activeTab} 
           onTabChange={setActiveTab}
@@ -166,6 +200,28 @@ function App() {
         <main className="flex-1 overflow-auto">
           {renderContent()}
         </main>
+        
+        {/* Error notification */}
+        {supabase.error && !supabase.loading && (
+          <div className="fixed bottom-4 right-4 bg-red-900 text-white p-4 rounded-lg shadow-lg max-w-md z-50 animate-in slide-in-from-right-5 duration-300">
+            <div className="flex items-start">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <p className="text-sm font-medium">{supabase.error}</p>
+                <button 
+                  onClick={supabase.retryConnection}
+                  className="mt-2 text-xs underline hover:text-red-200"
+                >
+                  Retry connection
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </SupabaseContext.Provider>
   );

@@ -19,23 +19,52 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     fetch: (url, options) => {
       return fetch(url, {
         ...options,
-        // 10 second timeout for all requests
-        signal: AbortSignal.timeout(10000)
+        // 30 second timeout for all requests
+        signal: AbortSignal.timeout(30000)
       });
     }
   },
-  // Retry failed requests
+  // Retry configuration
   db: {
     schema: 'public'
+  },
+  realtime: {
+    params: {
+      eventsPerSecond: 10
+    }
   }
 });
 
-// Add error event listener
+// Add connection event listeners
+let isReconnecting = false;
+
+supabase.channel('system').on('system', { event: 'reconnect' }, () => {
+  console.log('Reconnecting to Supabase...');
+  isReconnecting = true;
+}).on('system', { event: 'reconnected' }, () => {
+  console.log('Reconnected to Supabase!');
+  isReconnecting = false;
+  // Dispatch a custom event that our app can listen for
+  window.dispatchEvent(new CustomEvent('supabase-reconnected'));
+}).subscribe();
+
+// Add network event listeners
 window.addEventListener('online', () => {
   console.log('Network connection restored. Reconnecting to Supabase...');
-  // The next request will automatically reconnect
+  // Dispatch a custom event that our app can listen for
+  window.dispatchEvent(new CustomEvent('supabase-network-restored'));
 });
 
 window.addEventListener('offline', () => {
   console.warn('Network connection lost. Switching to offline mode...');
+  // Dispatch a custom event that our app can listen for
+  window.dispatchEvent(new CustomEvent('supabase-network-lost'));
 });
+
+// Export connection status helper
+export const getConnectionStatus = () => {
+  return {
+    online: navigator.onLine,
+    reconnecting: isReconnecting
+  };
+};

@@ -4,14 +4,11 @@ import {
   Account, 
   Customer, 
   Transaction, 
-  Invoice, 
-  InvoiceItem,
+  Invoice,
   UAECustomer,
   UAESupplier,
   SalesQuotation,
-  QuotationItem,
   PurchaseInvoice,
-  PurchaseInvoiceItem,
   InventoryItem,
   StockMovement,
   StockAllocation,
@@ -40,6 +37,9 @@ const withTimeout = (promise, ms) => {
   return Promise.race([promise, timeout]);
 };
 
+// Batch size for fetching data
+const BATCH_SIZE = 50;
+
 export const useSupabase = () => {
   // State for all entities
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -66,18 +66,20 @@ export const useSupabase = () => {
   const [user, setUser] = useState(null);
   const [retryCount, setRetryCount] = useState(0);
   const [isOfflineMode, setIsOfflineMode] = useState(false);
+  const [dataInitialized, setDataInitialized] = useState(false);
 
   // Initialize with mock data if offline mode is active
   useEffect(() => {
-    if (isOfflineMode) {
+    if (isOfflineMode && !dataInitialized) {
       console.log("Using offline mode with mock data");
       setAccounts(mockAccounts);
       setCustomers(mockCustomers);
       setTransactions(mockTransactions);
       setInvoices(mockInvoices);
+      setDataInitialized(true);
       setLoading(false);
     }
-  }, [isOfflineMode]);
+  }, [isOfflineMode, dataInitialized]);
 
   // Check if Supabase is available
   const checkSupabaseAvailability = async () => {
@@ -92,6 +94,59 @@ export const useSupabase = () => {
     } catch (err) {
       console.warn("Supabase availability check failed:", err.message);
       return false;
+    }
+  };
+
+  // Fetch data in batches to avoid timeouts
+  const fetchDataInBatches = async (tableName, setStateFunction, mockData = []) => {
+    try {
+      // First, get the count of records
+      const { count, error: countError } = await withTimeout(
+        supabase.from(tableName).select('*', { count: 'exact', head: true }),
+        TIMEOUT_MS
+      );
+      
+      if (countError) throw countError;
+      
+      if (!count || count === 0) {
+        console.log(`No data found in ${tableName}, using mock data`);
+        setStateFunction(mockData);
+        return mockData;
+      }
+      
+      // Calculate number of batches needed
+      const batches = Math.ceil(count / BATCH_SIZE);
+      let allData = [];
+      
+      // Fetch data in batches
+      for (let i = 0; i < batches; i++) {
+        const from = i * BATCH_SIZE;
+        const to = from + BATCH_SIZE - 1;
+        
+        const { data: batchData, error: batchError } = await withTimeout(
+          supabase.from(tableName).select('*').range(from, to),
+          TIMEOUT_MS
+        );
+        
+        if (batchError) throw batchError;
+        
+        if (batchData && batchData.length > 0) {
+          allData = [...allData, ...batchData];
+        }
+      }
+      
+      if (allData.length > 0) {
+        setStateFunction(allData);
+        return allData;
+      } else {
+        console.warn(`No data found for ${tableName}, using fallback data`);
+        setStateFunction(mockData);
+        return mockData;
+      }
+    } catch (err) {
+      console.error(`Error fetching ${tableName}:`, err.message);
+      setStateFunction(mockData);
+      return mockData;
     }
   };
 
@@ -155,95 +210,102 @@ export const useSupabase = () => {
   // Fetch all data from Supabase with retry mechanism and timeout
   const fetchAllData = async () => {
     setLoading(true);
+    setDataInitialized(false);
+    
     try {
       setError(null);
       
-      // Helper function to fetch data with timeout and fallback
-      const fetchWithFallback = async (tableName, setStateFunction, mockData = []) => {
-        try {
-          const { data, error } = await withTimeout(
-            supabase.from(tableName).select('*'),
-            TIMEOUT_MS
-          );
+      // Fetch core data first (accounts, customers, transactions)
+      await Promise.all([
+        fetchDataInBatches('accounts', setAccounts, mockAccounts),
+        fetchDataInBatches('customers', data => {
+          // Transform customer data to match interface
+          const transformedCustomers = (data || []).map(customer => ({
+            id: customer.id,
+            name: customer.name,
+            email: customer.email || '',
+            phone: customer.phone || '',
+            address: customer.address || '',
+            company: customer.company || '',
+            status: customer.status || 'Active',
+            totalRevenue: customer.total_revenue || 0,
+            lastContact: customer.last_contact ? new Date(customer.last_contact) : undefined,
+            created: new Date(customer.created_at),
+            notes: customer.notes || ''
+          }));
           
-          if (error) throw error;
-          
-          if (data && data.length > 0) {
-            setStateFunction(data);
-            return data;
-          } else {
-            console.warn(`No data found for ${tableName}, using fallback data`);
-            setStateFunction(mockData);
-            return mockData;
-          }
-        } catch (err) {
-          console.error(`Error fetching ${tableName}:`, err.message);
-          setStateFunction(mockData);
-          return mockData;
-        }
-      };
-    
-      // Fetch accounts
-      await fetchWithFallback('accounts', setAccounts, mockAccounts);
-      
-      // Fetch customers with transformation
-      const customersData = await fetchWithFallback('customers', data => {
-        // Transform customer data to match interface
-        const transformedCustomers = (data || []).map(customer => ({
-          id: customer.id,
-          name: customer.name,
-          email: customer.email || '',
-          phone: customer.phone || '',
-          address: customer.address || '',
-          company: customer.company || '',
-          status: customer.status || 'Active',
-          totalRevenue: customer.total_revenue || 0,
-          lastContact: customer.last_contact ? new Date(customer.last_contact) : undefined,
-          created: new Date(customer.created_at),
-          notes: customer.notes || ''
-        }));
-        
-        setCustomers(transformedCustomers);
-      }, mockCustomers);
-      
-      // Fetch transactions
-      await fetchWithFallback('transactions', setTransactions, mockTransactions);
+          setCustomers(transformedCustomers);
+        }, mockCustomers),
+        fetchDataInBatches('transactions', setTransactions, mockTransactions)
+      ]);
       
       // Fetch invoices with items
       try {
-        const { data: invoicesData, error: invoicesError } = await withTimeout(
-          supabase.from('invoices').select(`*, items:invoice_items(*)`),
-          TIMEOUT_MS
+        // First get all invoices
+        const invoicesData = await fetchDataInBatches('invoices', data => {}, mockInvoices);
+        
+        // Then fetch items for each invoice in batches
+        const invoicesWithItems = await Promise.all(
+          invoicesData.map(async (invoice) => {
+            try {
+              const { data: items, error: itemsError } = await withTimeout(
+                supabase.from('invoice_items').select('*').eq('invoice_id', invoice.id),
+                TIMEOUT_MS
+              );
+              
+              if (itemsError) throw itemsError;
+              
+              return {
+                ...invoice,
+                items: items || []
+              };
+            } catch (err) {
+              console.error(`Error fetching items for invoice ${invoice.id}:`, err.message);
+              return {
+                ...invoice,
+                items: []
+              };
+            }
+          })
         );
         
-        if (invoicesError) throw invoicesError;
-        
-        if (invoicesData && invoicesData.length > 0) {
-          setInvoices(invoicesData);
-        } else {
-          setInvoices(mockInvoices);
-        }
+        setInvoices(invoicesWithItems);
       } catch (err) {
-        console.error("Error fetching invoices:", err.message);
+        console.error("Error fetching invoices with items:", err.message);
         setInvoices(mockInvoices);
       }
       
-      // Fetch other entities with fallback to empty arrays
-      await fetchWithFallback('uae_customers', setUAECustomers, []);
-      await fetchWithFallback('uae_suppliers', setUAESuppliers, []);
-      await fetchWithFallback('sales_quotations', setSalesQuotations, []);
-      await fetchWithFallback('purchase_invoices', setPurchaseInvoices, []);
-      await fetchWithFallback('inventory_items', setInventoryItems, []);
-      await fetchWithFallback('stock_movements', setStockMovements, []);
-      await fetchWithFallback('stock_allocations', setStockAllocations, []);
-      await fetchWithFallback('receipts', setReceipts, []);
-      await fetchWithFallback('payments', setPayments, []);
-      await fetchWithFallback('bank_accounts', setBankAccounts, []);
-      await fetchWithFallback('bank_transactions', setBankTransactions, []);
-      await fetchWithFallback('cash_book_entries', setCashBookEntries, []);
-      await fetchWithFallback('inter_account_transfers', setInterAccountTransfers, []);
-      await fetchWithFallback('uae_einvoices', setUAEEInvoices, []);
+      // Fetch remaining data in parallel batches to improve performance
+      const remainingDataPromises = [
+        fetchDataInBatches('uae_customers', setUAECustomers, []),
+        fetchDataInBatches('uae_suppliers', setUAESuppliers, []),
+        fetchDataInBatches('sales_quotations', setSalesQuotations, []),
+        fetchDataInBatches('purchase_invoices', setPurchaseInvoices, []),
+        fetchDataInBatches('inventory_items', setInventoryItems, []),
+        fetchDataInBatches('stock_movements', setStockMovements, []),
+        fetchDataInBatches('stock_allocations', setStockAllocations, []),
+        fetchDataInBatches('receipts', setReceipts, []),
+        fetchDataInBatches('payments', setPayments, []),
+        fetchDataInBatches('bank_accounts', setBankAccounts, []),
+        fetchDataInBatches('bank_transactions', setBankTransactions, []),
+        fetchDataInBatches('cash_book_entries', setCashBookEntries, []),
+        fetchDataInBatches('inter_account_transfers', setInterAccountTransfers, []),
+        fetchDataInBatches('uae_einvoices', setUAEEInvoices, [])
+      ];
       
+      // Use Promise.allSettled to continue even if some promises fail
+      const results = await Promise.allSettled(remainingDataPromises);
+      
+      // Check for any rejected promises
+      const failedFetches = results
+        .filter(result => result.status === 'rejected')
+        .map(result => result.reason);
+      
+      if (failedFetches.length > 0) {
+        console.warn(`${failedFetches.length} data fetches failed:`, failedFetches);
+      }
+      
+      setDataInitialized(true);
     } catch (err) {
       console.error('Error in fetchAllData:', err);
       setError(`Failed to fetch data: ${err.message}. Using offline mode with mock data.`);
@@ -254,6 +316,7 @@ export const useSupabase = () => {
       setCustomers(mockCustomers);
       setTransactions(mockTransactions);
       setInvoices(mockInvoices);
+      setDataInitialized(true);
     } finally {
       setLoading(false);
     }
@@ -265,6 +328,7 @@ export const useSupabase = () => {
     setIsOfflineMode(false);
     setLoading(true);
     setError(null);
+    setDataInitialized(false);
   };
 
   // CRUD operations for accounts with error handling
@@ -276,7 +340,7 @@ export const useSupabase = () => {
           id: Date.now().toString(),
           created: new Date()
         };
-        setAccounts([...accounts, newAccount]);
+        setAccounts(prevAccounts => [...prevAccounts, newAccount]);
         return newAccount;
       }
 
@@ -299,8 +363,20 @@ export const useSupabase = () => {
       
       if (error) throw error;
       
-      setAccounts([...accounts, data]);
-      return data;
+      const newAccount = {
+        id: data.id,
+        code: data.code,
+        name: data.name,
+        type: data.type,
+        category: data.category,
+        balance: data.balance,
+        parentId: data.parent_id,
+        isActive: data.is_active,
+        created: new Date(data.created_at)
+      };
+      
+      setAccounts(prevAccounts => [...prevAccounts, newAccount]);
+      return newAccount;
     } catch (error) {
       console.error('Error adding account:', error);
       
@@ -316,7 +392,7 @@ export const useSupabase = () => {
         id: Date.now().toString(),
         created: new Date()
       };
-      setAccounts([...accounts, newAccount]);
+      setAccounts(prevAccounts => [...prevAccounts, newAccount]);
       return newAccount;
     }
   };
@@ -351,8 +427,20 @@ export const useSupabase = () => {
       
       if (error) throw error;
       
-      setAccounts(accounts.map(acc => acc.id === id ? data : acc));
-      return data;
+      const updatedAccount = {
+        id: data.id,
+        code: data.code,
+        name: data.name,
+        type: data.type,
+        category: data.category,
+        balance: data.balance,
+        parentId: data.parent_id,
+        isActive: data.is_active,
+        created: new Date(data.created_at)
+      };
+      
+      setAccounts(prevAccounts => prevAccounts.map(acc => acc.id === id ? updatedAccount : acc));
+      return updatedAccount;
     } catch (error) {
       console.error('Error updating account:', error);
       
@@ -374,7 +462,7 @@ export const useSupabase = () => {
   const deleteAccount = async (id: string) => {
     try {
       if (isOfflineMode) {
-        setAccounts(accounts.filter(acc => acc.id !== id));
+        setAccounts(prevAccounts => prevAccounts.filter(acc => acc.id !== id));
         return;
       }
 
@@ -388,7 +476,7 @@ export const useSupabase = () => {
       
       if (error) throw error;
       
-      setAccounts(accounts.filter(acc => acc.id !== id));
+      setAccounts(prevAccounts => prevAccounts.filter(acc => acc.id !== id));
     } catch (error) {
       console.error('Error deleting account:', error);
       
@@ -399,7 +487,7 @@ export const useSupabase = () => {
       }
       
       // Delete from local state even if Supabase operation failed
-      setAccounts(accounts.filter(acc => acc.id !== id));
+      setAccounts(prevAccounts => prevAccounts.filter(acc => acc.id !== id));
     }
   };
 
@@ -412,7 +500,7 @@ export const useSupabase = () => {
           id: Date.now().toString(),
           created: new Date()
         };
-        setCustomers([...customers, newCustomer]);
+        setCustomers(prevCustomers => [...prevCustomers, newCustomer]);
         return newCustomer;
       }
 
@@ -452,7 +540,7 @@ export const useSupabase = () => {
         notes: data.notes || ''
       };
       
-      setCustomers([...customers, transformedCustomer]);
+      setCustomers(prevCustomers => [...prevCustomers, transformedCustomer]);
       return transformedCustomer;
     } catch (error) {
       console.error('Error adding customer:', error);
@@ -469,7 +557,7 @@ export const useSupabase = () => {
         id: Date.now().toString(),
         created: new Date()
       };
-      setCustomers([...customers, newCustomer]);
+      setCustomers(prevCustomers => [...prevCustomers, newCustomer]);
       return newCustomer;
     }
   };
@@ -521,7 +609,7 @@ export const useSupabase = () => {
         notes: data.notes || ''
       };
       
-      setCustomers(customers.map(cust => cust.id === id ? transformedCustomer : cust));
+      setCustomers(prevCustomers => prevCustomers.map(cust => cust.id === id ? transformedCustomer : cust));
       return transformedCustomer;
     } catch (error) {
       console.error('Error updating customer:', error);
@@ -544,7 +632,7 @@ export const useSupabase = () => {
   const deleteCustomer = async (id: string) => {
     try {
       if (isOfflineMode) {
-        setCustomers(customers.filter(cust => cust.id !== id));
+        setCustomers(prevCustomers => prevCustomers.filter(cust => cust.id !== id));
         return;
       }
 
@@ -558,7 +646,7 @@ export const useSupabase = () => {
       
       if (error) throw error;
       
-      setCustomers(customers.filter(cust => cust.id !== id));
+      setCustomers(prevCustomers => prevCustomers.filter(cust => cust.id !== id));
     } catch (error) {
       console.error('Error deleting customer:', error);
       
@@ -569,7 +657,7 @@ export const useSupabase = () => {
       }
       
       // Delete from local state even if Supabase operation failed
-      setCustomers(customers.filter(cust => cust.id !== id));
+      setCustomers(prevCustomers => prevCustomers.filter(cust => cust.id !== id));
     }
   };
 
@@ -582,7 +670,7 @@ export const useSupabase = () => {
           id: Date.now().toString(),
           created: new Date()
         };
-        setTransactions([...transactions, newTransaction]);
+        setTransactions(prevTransactions => [...prevTransactions, newTransaction]);
         return newTransaction;
       }
 
@@ -606,8 +694,21 @@ export const useSupabase = () => {
       
       if (error) throw error;
       
-      setTransactions([...transactions, data]);
-      return data;
+      const newTransaction = {
+        id: data.id,
+        date: new Date(data.date),
+        reference: data.reference,
+        description: data.description,
+        debitAccount: data.debit_account_id,
+        creditAccount: data.credit_account_id,
+        amount: data.amount,
+        customerId: data.customer_id,
+        status: data.status,
+        created: new Date(data.created_at)
+      };
+      
+      setTransactions(prevTransactions => [...prevTransactions, newTransaction]);
+      return newTransaction;
     } catch (error) {
       console.error('Error adding transaction:', error);
       
@@ -623,7 +724,7 @@ export const useSupabase = () => {
         id: Date.now().toString(),
         created: new Date()
       };
-      setTransactions([...transactions, newTransaction]);
+      setTransactions(prevTransactions => [...prevTransactions, newTransaction]);
       return newTransaction;
     }
   };
@@ -637,7 +738,7 @@ export const useSupabase = () => {
           id: Date.now().toString(),
           created: new Date()
         };
-        setInvoices([...invoices, newInvoice]);
+        setInvoices(prevInvoices => [...prevInvoices, newInvoice]);
         return newInvoice;
       }
 
@@ -713,8 +814,44 @@ export const useSupabase = () => {
       
       if (fetchError) throw fetchError;
       
-      setInvoices([...invoices, completeInvoice]);
-      return completeInvoice;
+      const newInvoice = {
+        id: completeInvoice.id,
+        invoiceNumber: completeInvoice.invoice_number,
+        customerId: completeInvoice.customer_id,
+        date: new Date(completeInvoice.date),
+        dueDate: new Date(completeInvoice.due_date),
+        total: completeInvoice.total,
+        status: completeInvoice.status,
+        items: completeInvoice.items.map(item => ({
+          id: item.id,
+          description: item.description,
+          quantity: item.quantity,
+          rate: item.rate,
+          amount: item.amount
+        })),
+        created: new Date(completeInvoice.created_at),
+        mjNo: completeInvoice.mj_no,
+        salesOrder: completeInvoice.sales_order,
+        salesQuote: completeInvoice.sales_quote,
+        description: completeInvoice.description,
+        project: completeInvoice.project,
+        division: completeInvoice.division,
+        closedInvoice: completeInvoice.closed_invoice,
+        withholdingTax: completeInvoice.withholding_tax,
+        discount: completeInvoice.discount,
+        chasisNo: completeInvoice.chasis_no,
+        vehicleNo: completeInvoice.vehicle_no,
+        carModel: completeInvoice.car_model,
+        serviceKms: completeInvoice.service_kms,
+        termsConditions: completeInvoice.terms_conditions,
+        costOfSales: completeInvoice.cost_of_sales,
+        approvedBy: completeInvoice.approved_by,
+        createdBy: completeInvoice.created_by,
+        creditBy: completeInvoice.credit_by
+      };
+      
+      setInvoices(prevInvoices => [...prevInvoices, newInvoice]);
+      return newInvoice;
     } catch (error) {
       console.error('Error adding invoice:', error);
       
@@ -730,7 +867,7 @@ export const useSupabase = () => {
         id: Date.now().toString(),
         created: new Date()
       };
-      setInvoices([...invoices, newInvoice]);
+      setInvoices(prevInvoices => [...prevInvoices, newInvoice]);
       return newInvoice;
     }
   };
@@ -830,8 +967,44 @@ export const useSupabase = () => {
       
       if (fetchError) throw fetchError;
       
-      setInvoices(invoices.map(inv => inv.id === id ? completeInvoice : inv));
-      return completeInvoice;
+      const updatedInvoice = {
+        id: completeInvoice.id,
+        invoiceNumber: completeInvoice.invoice_number,
+        customerId: completeInvoice.customer_id,
+        date: new Date(completeInvoice.date),
+        dueDate: new Date(completeInvoice.due_date),
+        total: completeInvoice.total,
+        status: completeInvoice.status,
+        items: completeInvoice.items.map(item => ({
+          id: item.id,
+          description: item.description,
+          quantity: item.quantity,
+          rate: item.rate,
+          amount: item.amount
+        })),
+        created: new Date(completeInvoice.created_at),
+        mjNo: completeInvoice.mj_no,
+        salesOrder: completeInvoice.sales_order,
+        salesQuote: completeInvoice.sales_quote,
+        description: completeInvoice.description,
+        project: completeInvoice.project,
+        division: completeInvoice.division,
+        closedInvoice: completeInvoice.closed_invoice,
+        withholdingTax: completeInvoice.withholding_tax,
+        discount: completeInvoice.discount,
+        chasisNo: completeInvoice.chasis_no,
+        vehicleNo: completeInvoice.vehicle_no,
+        carModel: completeInvoice.car_model,
+        serviceKms: completeInvoice.service_kms,
+        termsConditions: completeInvoice.terms_conditions,
+        costOfSales: completeInvoice.cost_of_sales,
+        approvedBy: completeInvoice.approved_by,
+        createdBy: completeInvoice.created_by,
+        creditBy: completeInvoice.credit_by
+      };
+      
+      setInvoices(prevInvoices => prevInvoices.map(inv => inv.id === id ? updatedInvoice : inv));
+      return updatedInvoice;
     } catch (error) {
       console.error('Error updating invoice:', error);
       
@@ -853,7 +1026,7 @@ export const useSupabase = () => {
   const deleteInvoice = async (id: string) => {
     try {
       if (isOfflineMode) {
-        setInvoices(invoices.filter(inv => inv.id !== id));
+        setInvoices(prevInvoices => prevInvoices.filter(inv => inv.id !== id));
         return;
       }
 
@@ -868,7 +1041,7 @@ export const useSupabase = () => {
       
       if (error) throw error;
       
-      setInvoices(invoices.filter(inv => inv.id !== id));
+      setInvoices(prevInvoices => prevInvoices.filter(inv => inv.id !== id));
     } catch (error) {
       console.error('Error deleting invoice:', error);
       
@@ -879,7 +1052,7 @@ export const useSupabase = () => {
       }
       
       // Delete from local state even if Supabase operation failed
-      setInvoices(invoices.filter(inv => inv.id !== id));
+      setInvoices(prevInvoices => prevInvoices.filter(inv => inv.id !== id));
     }
   };
 
@@ -1000,6 +1173,7 @@ export const useSupabase = () => {
     error,
     user,
     isOfflineMode,
+    dataInitialized,
     
     // CRUD operations
     addAccount,
