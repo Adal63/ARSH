@@ -1,153 +1,44 @@
-import { useState, useEffect } from 'react';
-import { Account, Customer, Transaction, Invoice, KPI, AIInsight } from '../types';
-import { 
-  mockAccounts, 
-  mockCustomers, 
-  mockTransactions, 
-  mockInvoices, 
-  mockKPIs, 
-  mockAIInsights 
-} from '../data/mockData';
+import { useState } from 'react';
+import { Account, Customer, Transaction, Invoice, KPI, AIInsight, UAECustomer, UAESupplier } from '../types';
+import { mockKPIs, mockAIInsights } from '../data/mockData';
+import { useSupabaseContext } from '../App';
 
 export const useAccounting = () => {
-  const [accounts, setAccounts] = useState<Account[]>(mockAccounts);
-  const [customers, setCustomers] = useState<Customer[]>(mockCustomers);
-  const [transactions, setTransactions] = useState<Transaction[]>(mockTransactions);
-  const [invoices, setInvoices] = useState<Invoice[]>(mockInvoices);
+  const {
+    accounts,
+    customers,
+    transactions,
+    invoices,
+    uaeCustomers,
+    uaeSuppliers,
+    addAccount,
+    updateAccount,
+    deleteAccount,
+    addCustomer,
+    updateCustomer,
+    deleteCustomer,
+    addTransaction,
+    addInvoice,
+    updateInvoice,
+    deleteInvoice,
+    getTotalAssets,
+    getTotalLiabilities,
+    getTotalEquity,
+    getTotalRevenue,
+    getTotalExpenses,
+    getNetIncome
+  } = useSupabaseContext();
+  
   const [kpis, setKPIs] = useState<KPI[]>(mockKPIs);
   const [aiInsights, setAIInsights] = useState<AIInsight[]>(mockAIInsights);
-
-  // Account management
-  const addAccount = (account: Omit<Account, 'id' | 'created'>) => {
-    const newAccount: Account = {
-      ...account,
-      id: Date.now().toString(),
-      created: new Date()
-    };
-    setAccounts(prev => [...prev, newAccount]);
-  };
-
-  const updateAccount = (id: string, updates: Partial<Account>) => {
-    setAccounts(prev => prev.map(acc => 
-      acc.id === id ? { ...acc, ...updates } : acc
-    ));
-  };
-
-  const deleteAccount = (id: string) => {
-    setAccounts(prev => prev.filter(acc => acc.id !== id));
-  };
-
-  // Customer management
-  const addCustomer = (customer: Omit<Customer, 'id' | 'created'>) => {
-    const newCustomer: Customer = {
-      ...customer,
-      id: Date.now().toString(),
-      created: new Date()
-    };
-    setCustomers(prev => [...prev, newCustomer]);
-    return newCustomer; // Return the created customer
-  };
-
-  const updateCustomer = (id: string, updates: Partial<Customer>) => {
-    setCustomers(prev => prev.map(cust => 
-      cust.id === id ? { ...cust, ...updates } : cust
-    ));
-    
-    // Update any invoices that reference this customer
-    setInvoices(prev => prev.map(invoice => {
-      if (invoice.customerId === id) {
-        // If customer data is used in invoice, we might want to trigger a refresh
-        // For now, we'll just ensure the invoice knows the customer data changed
-        return { ...invoice, lastUpdated: new Date() };
-      }
-      return invoice;
-    }));
-  };
-
-  const deleteCustomer = (id: string) => {
-    setCustomers(prev => prev.filter(cust => cust.id !== id));
-    
-    // Handle invoices that reference the deleted customer
-    setInvoices(prev => prev.map(invoice => {
-      if (invoice.customerId === id) {
-        // Option 1: Remove customer reference
-        return { ...invoice, customerId: undefined };
-        // Option 2: You could also delete the invoice or mark it as orphaned
-      }
-      return invoice;
-    }));
-  };
-
-  // Transaction management
-  const addTransaction = (transaction: Omit<Transaction, 'id' | 'created'>) => {
-    const newTransaction: Transaction = {
-      ...transaction,
-      id: Date.now().toString(),
-      created: new Date()
-    };
-    setTransactions(prev => [...prev, newTransaction]);
-  };
-
-  // Invoice management
-  const addInvoice = (invoice: Omit<Invoice, 'id' | 'created'>) => {
-    const newInvoice: Invoice = {
-      ...invoice,
-      id: Date.now().toString(),
-      created: new Date()
-    };
-    setInvoices(prev => [...prev, newInvoice]);
-  };
-
-  const updateInvoice = (id: string, updates: Partial<Invoice>) => {
-    setInvoices(prev => prev.map(inv => 
-      inv.id === id ? { ...inv, ...updates } : inv
-    ));
-  };
-
-  const deleteInvoice = (id: string) => {
-    setInvoices(prev => prev.filter(inv => inv.id !== id));
-  };
-
-  // Financial calculations
-  const getTotalAssets = () => {
-    return accounts
-      .filter(acc => acc.type === 'Asset')
-      .reduce((sum, acc) => sum + acc.balance, 0);
-  };
-
-  const getTotalLiabilities = () => {
-    return accounts
-      .filter(acc => acc.type === 'Liability')
-      .reduce((sum, acc) => sum + acc.balance, 0);
-  };
-
-  const getTotalEquity = () => {
-    return accounts
-      .filter(acc => acc.type === 'Equity')
-      .reduce((sum, acc) => sum + acc.balance, 0);
-  };
-
-  const getTotalRevenue = () => {
-    return accounts
-      .filter(acc => acc.type === 'Revenue')
-      .reduce((sum, acc) => sum + acc.balance, 0);
-  };
-
-  const getTotalExpenses = () => {
-    return accounts
-      .filter(acc => acc.type === 'Expense')
-      .reduce((sum, acc) => sum + acc.balance, 0);
-  };
-
-  const getNetIncome = () => {
-    return getTotalRevenue() - getTotalExpenses();
-  };
 
   return {
     accounts,
     customers,
     transactions,
     invoices,
+    uaeCustomers,
+    uaeSuppliers,
     kpis,
     aiInsights,
     addAccount,
@@ -165,6 +56,6 @@ export const useAccounting = () => {
     getTotalEquity,
     getTotalRevenue,
     getTotalExpenses,
-    getNetIncome
+    getNetIncome,
   };
 };

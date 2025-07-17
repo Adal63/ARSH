@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useEffect } from 'react';
+import { useEffect, useContext, createContext } from 'react';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
 import Settings from './components/Settings';
@@ -15,6 +15,8 @@ import UAECustomers from './components/UAECustomers';
 import UAESuppliers from './components/UAESuppliers';
 import SalesQuotations from './components/SalesQuotations';
 import PurchaseInvoices from './components/PurchaseInvoices';
+import Auth from './components/Auth';
+import { useSupabase } from './hooks/useSupabase';
 import CashBook from './components/CashBook';
 import BankModule from './components/BankModule';
 import InterAccountTransferModule from './components/InterAccountTransfer';
@@ -37,7 +39,11 @@ import {
   Settings as SettingsIcon 
 } from 'lucide-react';
 
+// Create a context for Supabase
+export const SupabaseContext = createContext<ReturnType<typeof useSupabase> | null>(null);
+
 function App() {
+  const supabase = useSupabase();
   const [activeTab, setActiveTab] = useState('dashboard');
   
   // Available sections configuration
@@ -77,6 +83,19 @@ function App() {
     localStorage.setItem('visibleSections', JSON.stringify(visibleSections));
     localStorage.setItem('sectionOrder', JSON.stringify(sectionOrder));
   }, [visibleSections, sectionOrder]);
+
+  // Check if user is authenticated
+  if (supabase.loading) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="text-white text-xl">Loading...</div>
+      </div>
+    );
+  }
+
+  if (!supabase.user) {
+    return <Auth />;
+  }
 
   const handleUpdateSettings = (settings: { visibleSections: string[], sectionOrder: string[] }) => {
     setVisibleSections(settings.visibleSections);
@@ -132,19 +151,30 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 flex">
-      <Sidebar 
-        activeTab={activeTab} 
-        onTabChange={setActiveTab}
-        availableSections={availableSections}
-        visibleSections={visibleSections}
-        sectionOrder={sectionOrder}
-      />
-      <main className="flex-1 overflow-auto">
-        {renderContent()}
-      </main>
-    </div>
+    <SupabaseContext.Provider value={supabase}>
+      <div className="min-h-screen bg-gray-900 flex">
+        <Sidebar 
+          activeTab={activeTab} 
+          onTabChange={setActiveTab}
+          availableSections={availableSections}
+          visibleSections={visibleSections}
+          sectionOrder={sectionOrder}
+        />
+        <main className="flex-1 overflow-auto">
+          {renderContent()}
+        </main>
+      </div>
+    </SupabaseContext.Provider>
   );
 }
+
+// Custom hook to use the Supabase context
+export const useSupabaseContext = () => {
+  const context = useContext(SupabaseContext);
+  if (!context) {
+    throw new Error('useSupabaseContext must be used within a SupabaseContext.Provider');
+  }
+  return context;
+};
 
 export default App;
