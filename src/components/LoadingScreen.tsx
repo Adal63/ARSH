@@ -1,5 +1,5 @@
 import React from 'react';
-import { RefreshCw, WifiOff, Database, Server } from 'lucide-react';
+import { RefreshCw, WifiOff, Database, Server, Loader2 } from 'lucide-react';
 
 interface LoadingScreenProps {
   error: string | null;
@@ -21,7 +21,7 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({ error, isOfflineMode, onR
         <div className="p-6">
           {!error ? (
             <div className="flex flex-col items-center">
-              <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+              <Loader2 className="w-16 h-16 text-blue-500 animate-spin mb-4" />
               <p className="text-white text-lg font-medium">Loading application...</p>
               <p className="text-gray-400 text-sm mt-2">Connecting to database and initializing components</p>
             </div>
