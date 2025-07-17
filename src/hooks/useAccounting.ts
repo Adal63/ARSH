@@ -28,7 +28,8 @@ export const useAccounting = () => {
     getTotalExpenses,
     getNetIncome,
     loading,
-    error
+    error,
+    isOfflineMode
   } = useSupabaseContext();
   
   const [kpis, setKPIs] = useState<KPI[]>(mockKPIs);
@@ -66,6 +67,7 @@ export const useAccounting = () => {
     getTotalExpenses,
     getNetIncome,
     loading,
-    error
+    error,
+    isOfflineMode
   };
 };

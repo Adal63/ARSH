@@ -23,6 +23,22 @@ import {
   InterAccountTransfer,
   UAEEInvoice
 } from '../types';
+import { mockAccounts, mockCustomers, mockTransactions, mockInvoices } from '../data/mockData';
+
+// Maximum time to wait for Supabase operations before timing out
+const TIMEOUT_MS = 10000;
+
+// Function to add timeout to promises
+const withTimeout = (promise, ms) => {
+  const timeout = new Promise((_, reject) => {
+    const id = setTimeout(() => {
+      clearTimeout(id);
+      reject(new Error(`Operation timed out after ${ms}ms`));
+    }, ms);
+  });
+
+  return Promise.race([promise, timeout]);
+};
 
 export const useSupabase = () => {
   // State for all entities
@@ -47,321 +63,377 @@ export const useSupabase = () => {
   
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [user, setUser] = useState(supabase.auth.getUser());
+  const [user, setUser] = useState(null);
+  const [retryCount, setRetryCount] = useState(0);
+  const [isOfflineMode, setIsOfflineMode] = useState(false);
+
+  // Initialize with mock data if offline mode is active
+  useEffect(() => {
+    if (isOfflineMode) {
+      console.log("Using offline mode with mock data");
+      setAccounts(mockAccounts);
+      setCustomers(mockCustomers);
+      setTransactions(mockTransactions);
+      setInvoices(mockInvoices);
+      setLoading(false);
+    }
+  }, [isOfflineMode]);
+
+  // Check if Supabase is available
+  const checkSupabaseAvailability = async () => {
+    try {
+      const { data, error } = await withTimeout(
+        supabase.from('accounts').select('count').limit(1),
+        5000
+      );
+      
+      if (error) throw error;
+      return true;
+    } catch (err) {
+      console.warn("Supabase availability check failed:", err.message);
+      return false;
+    }
+  };
 
   // Fetch all data on component mount
   useEffect(() => {
-    try {
-      fetchAllData();
-    } catch (error) {
-      console.error("Failed to fetch initial data:", error);
-      setLoading(false);
-    }
+    const initializeApp = async () => {
+      try {
+        // Check if Supabase is available
+        const isAvailable = await checkSupabaseAvailability();
+        
+        if (!isAvailable) {
+          console.warn("Supabase is not available, switching to offline mode");
+          setIsOfflineMode(true);
+          setError("Unable to connect to Supabase. Using offline mode with mock data.");
+          return;
+        }
+        
+        // Check for existing session
+        const { data: { session } } = await supabase.auth.getSession();
+        const currentUser = session ? session.user : null;
+        setUser(currentUser);
+        
+        if (currentUser) {
+          await fetchAllData();
+        } else {
+          // Not logged in, but Supabase is available
+          setLoading(false);
+        }
+      } catch (err) {
+        console.error("Error initializing app:", err);
+        setError("Failed to initialize the application. Using offline mode.");
+        setIsOfflineMode(true);
+        setLoading(false);
+      }
+    };
+    
+    initializeApp();
     
     // Set up auth state listener
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      const currentUser = session ? await supabase.auth.getUser() : null;
+      const currentUser = session ? session.user : null;
       setUser(currentUser);
       
-      if (currentUser) {
-        fetchAllData();
+      if (currentUser && !isOfflineMode) {
+        try {
+          await fetchAllData();
+        } catch (err) {
+          console.error("Error fetching data after auth change:", err);
+        }
+      } else if (!currentUser) {
+        // User logged out
+        setLoading(false);
       }
     });
     
     return () => {
       authListener.subscription.unsubscribe();
     };
-  }, []);
+  }, [retryCount]);
 
-  // Fetch all data from Supabase
+  // Fetch all data from Supabase with retry mechanism and timeout
   const fetchAllData = async () => {
     setLoading(true);
     try {
       setError(null);
+      
+      // Helper function to fetch data with timeout and fallback
+      const fetchWithFallback = async (tableName, setStateFunction, mockData = []) => {
+        try {
+          const { data, error } = await withTimeout(
+            supabase.from(tableName).select('*'),
+            TIMEOUT_MS
+          );
+          
+          if (error) throw error;
+          
+          if (data && data.length > 0) {
+            setStateFunction(data);
+            return data;
+          } else {
+            console.warn(`No data found for ${tableName}, using fallback data`);
+            setStateFunction(mockData);
+            return mockData;
+          }
+        } catch (err) {
+          console.error(`Error fetching ${tableName}:`, err.message);
+          setStateFunction(mockData);
+          return mockData;
+        }
+      };
     
       // Fetch accounts
-      const { data: accountsData, error: accountsError } = await supabase
-        .from('accounts')
-        .select('*')
-        .order('code', { ascending: true });
+      await fetchWithFallback('accounts', setAccounts, mockAccounts);
       
-      if (accountsError) throw new Error(`Error fetching accounts: ${accountsError.message}`);
-      setAccounts(accountsData || []);
-      
-      // Fetch customers
-      const { data: customersData, error: customersError } = await supabase
-        .from('customers')
-        .select('*')
-        .order('name', { ascending: true });
-      
-      if (customersError) throw new Error(`Error fetching customers: ${customersError.message}`);
-      
-      // Transform customer data to match interface
-      const transformedCustomers = (customersData || []).map(customer => ({
-        id: customer.id,
-        name: customer.name,
-        email: customer.email,
-        phone: customer.phone,
-        address: customer.address,
-        company: customer.company,
-        status: customer.status,
-        totalRevenue: customer.total_revenue || 0,
-        lastContact: customer.last_contact ? new Date(customer.last_contact) : undefined,
-        created: new Date(customer.created_at),
-        notes: customer.notes || ''
-      }));
-      
-      setCustomers(transformedCustomers);
+      // Fetch customers with transformation
+      const customersData = await fetchWithFallback('customers', data => {
+        // Transform customer data to match interface
+        const transformedCustomers = (data || []).map(customer => ({
+          id: customer.id,
+          name: customer.name,
+          email: customer.email || '',
+          phone: customer.phone || '',
+          address: customer.address || '',
+          company: customer.company || '',
+          status: customer.status || 'Active',
+          totalRevenue: customer.total_revenue || 0,
+          lastContact: customer.last_contact ? new Date(customer.last_contact) : undefined,
+          created: new Date(customer.created_at),
+          notes: customer.notes || ''
+        }));
+        
+        setCustomers(transformedCustomers);
+      }, mockCustomers);
       
       // Fetch transactions
-      const { data: transactionsData, error: transactionsError } = await supabase
-        .from('transactions')
-        .select('*')
-        .order('date', { ascending: false });
-      
-      if (transactionsError) throw new Error(`Error fetching transactions: ${transactionsError.message}`);
-      setTransactions(transactionsData || []);
+      await fetchWithFallback('transactions', setTransactions, mockTransactions);
       
       // Fetch invoices with items
-      const { data: invoicesData, error: invoicesError } = await supabase
-        .from('invoices')
-        .select(`
-          *,
-          items:invoice_items(*)
-        `)
-        .order('date', { ascending: false });
+      try {
+        const { data: invoicesData, error: invoicesError } = await withTimeout(
+          supabase.from('invoices').select(`*, items:invoice_items(*)`),
+          TIMEOUT_MS
+        );
+        
+        if (invoicesError) throw invoicesError;
+        
+        if (invoicesData && invoicesData.length > 0) {
+          setInvoices(invoicesData);
+        } else {
+          setInvoices(mockInvoices);
+        }
+      } catch (err) {
+        console.error("Error fetching invoices:", err.message);
+        setInvoices(mockInvoices);
+      }
       
-      if (invoicesError) throw new Error(`Error fetching invoices: ${invoicesError.message}`);
-      setInvoices(invoicesData || []);
+      // Fetch other entities with fallback to empty arrays
+      await fetchWithFallback('uae_customers', setUAECustomers, []);
+      await fetchWithFallback('uae_suppliers', setUAESuppliers, []);
+      await fetchWithFallback('sales_quotations', setSalesQuotations, []);
+      await fetchWithFallback('purchase_invoices', setPurchaseInvoices, []);
+      await fetchWithFallback('inventory_items', setInventoryItems, []);
+      await fetchWithFallback('stock_movements', setStockMovements, []);
+      await fetchWithFallback('stock_allocations', setStockAllocations, []);
+      await fetchWithFallback('receipts', setReceipts, []);
+      await fetchWithFallback('payments', setPayments, []);
+      await fetchWithFallback('bank_accounts', setBankAccounts, []);
+      await fetchWithFallback('bank_transactions', setBankTransactions, []);
+      await fetchWithFallback('cash_book_entries', setCashBookEntries, []);
+      await fetchWithFallback('inter_account_transfers', setInterAccountTransfers, []);
+      await fetchWithFallback('uae_einvoices', setUAEEInvoices, []);
       
-      // Fetch UAE customers
-      const { data: uaeCustomersData, error: uaeCustomersError } = await supabase
-        .from('uae_customers')
-        .select('*')
-        .order('customer_name', { ascending: true });
-      
-      if (uaeCustomersError) throw new Error(`Error fetching UAE customers: ${uaeCustomersError.message}`);
-      setUAECustomers(uaeCustomersData || []);
-      
-      // Fetch UAE suppliers
-      const { data: uaeSuppliersData, error: uaeSuppliersError } = await supabase
-        .from('uae_suppliers')
-        .select('*')
-        .order('supplier_name', { ascending: true });
-      
-      if (uaeSuppliersError) throw new Error(`Error fetching UAE suppliers: ${uaeSuppliersError.message}`);
-      setUAESuppliers(uaeSuppliersData || []);
-      
-      // Fetch sales quotations with items
-      const { data: salesQuotationsData, error: salesQuotationsError } = await supabase
-        .from('sales_quotations')
-        .select(`
-          *,
-          items:quotation_items(*)
-        `)
-        .order('quotation_date', { ascending: false });
-      
-      if (salesQuotationsError) throw new Error(`Error fetching sales quotations: ${salesQuotationsError.message}`);
-      setSalesQuotations(salesQuotationsData || []);
-      
-      // Fetch purchase invoices with items
-      const { data: purchaseInvoicesData, error: purchaseInvoicesError } = await supabase
-        .from('purchase_invoices')
-        .select(`
-          *,
-          items:purchase_invoice_items(*)
-        `)
-        .order('invoice_date', { ascending: false });
-      
-      if (purchaseInvoicesError) throw new Error(`Error fetching purchase invoices: ${purchaseInvoicesError.message}`);
-      setPurchaseInvoices(purchaseInvoicesData || []);
-      
-      // Fetch inventory items
-      const { data: inventoryItemsData, error: inventoryItemsError } = await supabase
-        .from('inventory_items')
-        .select('*')
-        .order('name', { ascending: true });
-      
-      if (inventoryItemsError) throw new Error(`Error fetching inventory items: ${inventoryItemsError.message}`);
-      setInventoryItems(inventoryItemsData || []);
-      
-      // Fetch stock movements
-      const { data: stockMovementsData, error: stockMovementsError } = await supabase
-        .from('stock_movements')
-        .select('*')
-        .order('date', { ascending: false });
-      
-      if (stockMovementsError) throw new Error(`Error fetching stock movements: ${stockMovementsError.message}`);
-      setStockMovements(stockMovementsData || []);
-      
-      // Fetch stock allocations
-      const { data: stockAllocationsData, error: stockAllocationsError } = await supabase
-        .from('stock_allocations')
-        .select('*')
-        .order('allocation_date', { ascending: false });
-      
-      if (stockAllocationsError) throw new Error(`Error fetching stock allocations: ${stockAllocationsError.message}`);
-      setStockAllocations(stockAllocationsData || []);
-      
-      // Fetch receipts
-      const { data: receiptsData, error: receiptsError } = await supabase
-        .from('receipts')
-        .select('*')
-        .order('date', { ascending: false });
-      
-      if (receiptsError) throw new Error(`Error fetching receipts: ${receiptsError.message}`);
-      setReceipts(receiptsData || []);
-      
-      // Fetch payments
-      const { data: paymentsData, error: paymentsError } = await supabase
-        .from('payments')
-        .select('*')
-        .order('date', { ascending: false });
-      
-      if (paymentsError) throw new Error(`Error fetching payments: ${paymentsError.message}`);
-      setPayments(paymentsData || []);
-      
-      // Fetch bank accounts
-      const { data: bankAccountsData, error: bankAccountsError } = await supabase
-        .from('bank_accounts')
-        .select('*')
-        .order('bank_name', { ascending: true });
-      
-      if (bankAccountsError) throw new Error(`Error fetching bank accounts: ${bankAccountsError.message}`);
-      setBankAccounts(bankAccountsData || []);
-      
-      // Fetch bank transactions
-      const { data: bankTransactionsData, error: bankTransactionsError } = await supabase
-        .from('bank_transactions')
-        .select('*')
-        .order('transaction_date', { ascending: false });
-      
-      if (bankTransactionsError) throw new Error(`Error fetching bank transactions: ${bankTransactionsError.message}`);
-      setBankTransactions(bankTransactionsData || []);
-      
-      // Fetch cash book entries
-      const { data: cashBookEntriesData, error: cashBookEntriesError } = await supabase
-        .from('cash_book_entries')
-        .select('*')
-        .order('date', { ascending: false });
-      
-      if (cashBookEntriesError) throw new Error(`Error fetching cash book entries: ${cashBookEntriesError.message}`);
-      setCashBookEntries(cashBookEntriesData || []);
-      
-      // Fetch inter-account transfers
-      const { data: interAccountTransfersData, error: interAccountTransfersError } = await supabase
-        .from('inter_account_transfers')
-        .select('*')
-        .order('transfer_date', { ascending: false });
-      
-      if (interAccountTransfersError) throw new Error(`Error fetching inter-account transfers: ${interAccountTransfersError.message}`);
-      setInterAccountTransfers(interAccountTransfersData || []);
-      
-      // Fetch UAE E-Invoices
-      const { data: uaeEInvoicesData, error: uaeEInvoicesError } = await supabase
-        .from('uae_einvoices')
-        .select('*')
-        .order('submission_date_time', { ascending: false });
-      
-      if (uaeEInvoicesError) throw new Error(`Error fetching UAE E-Invoices: ${uaeEInvoicesError.message}`);
-      setUAEEInvoices(uaeEInvoicesData || []);
-      
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
       console.error('Error in fetchAllData:', err);
+      setError(`Failed to fetch data: ${err.message}. Using offline mode with mock data.`);
+      setIsOfflineMode(true);
+      
+      // Set mock data as fallback
+      setAccounts(mockAccounts);
+      setCustomers(mockCustomers);
+      setTransactions(mockTransactions);
+      setInvoices(mockInvoices);
     } finally {
       setLoading(false);
     }
   };
 
-  // CRUD operations for accounts
+  // Retry connection
+  const retryConnection = () => {
+    setRetryCount(prev => prev + 1);
+    setIsOfflineMode(false);
+    setLoading(true);
+    setError(null);
+  };
+
+  // CRUD operations for accounts with error handling
   const addAccount = async (account: Omit<Account, 'id' | 'created'>) => {
     try {
-      const { data, error } = await supabase
-        .from('accounts')
-        .insert([{
-          code: account.code,
-          name: account.name,
-          type: account.type,
-          category: account.category,
-          balance: account.balance,
-          parent_id: account.parentId,
-          is_active: account.isActive
-        }])
-        .select()
-        .single();
+      if (isOfflineMode) {
+        const newAccount = {
+          ...account,
+          id: Date.now().toString(),
+          created: new Date()
+        };
+        setAccounts([...accounts, newAccount]);
+        return newAccount;
+      }
+
+      const { data, error } = await withTimeout(
+        supabase
+          .from('accounts')
+          .insert([{
+            code: account.code,
+            name: account.name,
+            type: account.type,
+            category: account.category,
+            balance: account.balance,
+            parent_id: account.parentId,
+            is_active: account.isActive
+          }])
+          .select()
+          .single(),
+        TIMEOUT_MS
+      );
       
       if (error) throw error;
       
       setAccounts([...accounts, data]);
       return data;
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error adding account:', error);
-      throw error;
+      
+      // Fallback to offline mode if operation fails
+      if (!isOfflineMode) {
+        setError(`Failed to add account: ${error.message}. Changes will not be saved to the database.`);
+        setIsOfflineMode(true);
+      }
+      
+      // Add to local state even if Supabase operation failed
+      const newAccount = {
+        ...account,
+        id: Date.now().toString(),
+        created: new Date()
+      };
+      setAccounts([...accounts, newAccount]);
+      return newAccount;
     }
   };
 
   const updateAccount = async (id: string, updates: Partial<Account>) => {
     try {
-      const { data, error } = await supabase
-        .from('accounts')
-        .update({
-          code: updates.code,
-          name: updates.name,
-          type: updates.type,
-          category: updates.category,
-          balance: updates.balance,
-          parent_id: updates.parentId,
-          is_active: updates.isActive
-        })
-        .eq('id', id)
-        .select()
-        .single();
+      if (isOfflineMode) {
+        const updatedAccounts = accounts.map(acc => 
+          acc.id === id ? { ...acc, ...updates } : acc
+        );
+        setAccounts(updatedAccounts);
+        return updatedAccounts.find(acc => acc.id === id);
+      }
+
+      const { data, error } = await withTimeout(
+        supabase
+          .from('accounts')
+          .update({
+            code: updates.code,
+            name: updates.name,
+            type: updates.type,
+            category: updates.category,
+            balance: updates.balance,
+            parent_id: updates.parentId,
+            is_active: updates.isActive
+          })
+          .eq('id', id)
+          .select()
+          .single(),
+        TIMEOUT_MS
+      );
       
       if (error) throw error;
       
       setAccounts(accounts.map(acc => acc.id === id ? data : acc));
       return data;
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error updating account:', error);
-      throw error;
+      
+      // Fallback to offline mode if operation fails
+      if (!isOfflineMode) {
+        setError(`Failed to update account: ${error.message}. Changes will not be saved to the database.`);
+        setIsOfflineMode(true);
+      }
+      
+      // Update local state even if Supabase operation failed
+      const updatedAccounts = accounts.map(acc => 
+        acc.id === id ? { ...acc, ...updates } : acc
+      );
+      setAccounts(updatedAccounts);
+      return updatedAccounts.find(acc => acc.id === id);
     }
   };
 
   const deleteAccount = async (id: string) => {
     try {
-      const { error } = await supabase
-        .from('accounts')
-        .delete()
-        .eq('id', id);
+      if (isOfflineMode) {
+        setAccounts(accounts.filter(acc => acc.id !== id));
+        return;
+      }
+
+      const { error } = await withTimeout(
+        supabase
+          .from('accounts')
+          .delete()
+          .eq('id', id),
+        TIMEOUT_MS
+      );
       
       if (error) throw error;
       
       setAccounts(accounts.filter(acc => acc.id !== id));
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error deleting account:', error);
-      throw error;
+      
+      // Fallback to offline mode if operation fails
+      if (!isOfflineMode) {
+        setError(`Failed to delete account: ${error.message}. Changes will not be saved to the database.`);
+        setIsOfflineMode(true);
+      }
+      
+      // Delete from local state even if Supabase operation failed
+      setAccounts(accounts.filter(acc => acc.id !== id));
     }
   };
 
-  // CRUD operations for customers
+  // CRUD operations for customers with error handling
   const addCustomer = async (customer: Omit<Customer, 'id' | 'created'>) => {
     try {
-      const { data, error } = await supabase
-        .from('customers')
-        .insert([{
-          name: customer.name,
-          email: customer.email,
-          phone: customer.phone,
-          address: customer.address,
-          company: customer.company,
-          status: customer.status,
-          total_revenue: customer.totalRevenue,
-          last_contact: customer.lastContact,
-          notes: customer.notes
-        }])
-        .select()
-        .single();
+      if (isOfflineMode) {
+        const newCustomer = {
+          ...customer,
+          id: Date.now().toString(),
+          created: new Date()
+        };
+        setCustomers([...customers, newCustomer]);
+        return newCustomer;
+      }
+
+      const { data, error } = await withTimeout(
+        supabase
+          .from('customers')
+          .insert([{
+            name: customer.name,
+            email: customer.email,
+            phone: customer.phone,
+            address: customer.address,
+            company: customer.company,
+            status: customer.status,
+            total_revenue: customer.totalRevenue,
+            last_contact: customer.lastContact,
+            notes: customer.notes
+          }])
+          .select()
+          .single(),
+        TIMEOUT_MS
+      );
       
       if (error) throw error;
       
@@ -369,11 +441,11 @@ export const useSupabase = () => {
       const transformedCustomer = {
         id: data.id,
         name: data.name,
-        email: data.email,
-        phone: data.phone,
-        address: data.address,
-        company: data.company,
-        status: data.status,
+        email: data.email || '',
+        phone: data.phone || '',
+        address: data.address || '',
+        company: data.company || '',
+        status: data.status || 'Active',
         totalRevenue: data.total_revenue || 0,
         lastContact: data.last_contact ? new Date(data.last_contact) : undefined,
         created: new Date(data.created_at),
@@ -382,30 +454,55 @@ export const useSupabase = () => {
       
       setCustomers([...customers, transformedCustomer]);
       return transformedCustomer;
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error adding customer:', error);
-      throw error;
+      
+      // Fallback to offline mode if operation fails
+      if (!isOfflineMode) {
+        setError(`Failed to add customer: ${error.message}. Changes will not be saved to the database.`);
+        setIsOfflineMode(true);
+      }
+      
+      // Add to local state even if Supabase operation failed
+      const newCustomer = {
+        ...customer,
+        id: Date.now().toString(),
+        created: new Date()
+      };
+      setCustomers([...customers, newCustomer]);
+      return newCustomer;
     }
   };
 
   const updateCustomer = async (id: string, updates: Partial<Customer>) => {
     try {
-      const { data, error } = await supabase
-        .from('customers')
-        .update({
-          name: updates.name,
-          email: updates.email,
-          phone: updates.phone,
-          address: updates.address,
-          company: updates.company,
-          status: updates.status,
-          total_revenue: updates.totalRevenue,
-          last_contact: updates.lastContact,
-          notes: updates.notes
-        })
-        .eq('id', id)
-        .select()
-        .single();
+      if (isOfflineMode) {
+        const updatedCustomers = customers.map(cust => 
+          cust.id === id ? { ...cust, ...updates } : cust
+        );
+        setCustomers(updatedCustomers);
+        return updatedCustomers.find(cust => cust.id === id);
+      }
+
+      const { data, error } = await withTimeout(
+        supabase
+          .from('customers')
+          .update({
+            name: updates.name,
+            email: updates.email,
+            phone: updates.phone,
+            address: updates.address,
+            company: updates.company,
+            status: updates.status,
+            total_revenue: updates.totalRevenue,
+            last_contact: updates.lastContact,
+            notes: updates.notes
+          })
+          .eq('id', id)
+          .select()
+          .single(),
+        TIMEOUT_MS
+      );
       
       if (error) throw error;
       
@@ -413,11 +510,11 @@ export const useSupabase = () => {
       const transformedCustomer = {
         id: data.id,
         name: data.name,
-        email: data.email,
-        phone: data.phone,
-        address: data.address,
-        company: data.company,
-        status: data.status,
+        email: data.email || '',
+        phone: data.phone || '',
+        address: data.address || '',
+        company: data.company || '',
+        status: data.status || 'Active',
         totalRevenue: data.total_revenue || 0,
         lastContact: data.last_contact ? new Date(data.last_contact) : undefined,
         created: new Date(data.created_at),
@@ -426,90 +523,158 @@ export const useSupabase = () => {
       
       setCustomers(customers.map(cust => cust.id === id ? transformedCustomer : cust));
       return transformedCustomer;
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error updating customer:', error);
-      throw error;
+      
+      // Fallback to offline mode if operation fails
+      if (!isOfflineMode) {
+        setError(`Failed to update customer: ${error.message}. Changes will not be saved to the database.`);
+        setIsOfflineMode(true);
+      }
+      
+      // Update local state even if Supabase operation failed
+      const updatedCustomers = customers.map(cust => 
+        cust.id === id ? { ...cust, ...updates } : cust
+      );
+      setCustomers(updatedCustomers);
+      return updatedCustomers.find(cust => cust.id === id);
     }
   };
 
   const deleteCustomer = async (id: string) => {
     try {
-      const { error } = await supabase
-        .from('customers')
-        .delete()
-        .eq('id', id);
+      if (isOfflineMode) {
+        setCustomers(customers.filter(cust => cust.id !== id));
+        return;
+      }
+
+      const { error } = await withTimeout(
+        supabase
+          .from('customers')
+          .delete()
+          .eq('id', id),
+        TIMEOUT_MS
+      );
       
       if (error) throw error;
       
       setCustomers(customers.filter(cust => cust.id !== id));
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error deleting customer:', error);
-      throw error;
+      
+      // Fallback to offline mode if operation fails
+      if (!isOfflineMode) {
+        setError(`Failed to delete customer: ${error.message}. Changes will not be saved to the database.`);
+        setIsOfflineMode(true);
+      }
+      
+      // Delete from local state even if Supabase operation failed
+      setCustomers(customers.filter(cust => cust.id !== id));
     }
   };
 
-  // CRUD operations for transactions
+  // CRUD operations for transactions with error handling
   const addTransaction = async (transaction: Omit<Transaction, 'id' | 'created'>) => {
     try {
-      const { data, error } = await supabase
-        .from('transactions')
-        .insert([{
-          date: transaction.date,
-          reference: transaction.reference,
-          description: transaction.description,
-          debit_account_id: transaction.debitAccount,
-          credit_account_id: transaction.creditAccount,
-          amount: transaction.amount,
-          customer_id: transaction.customerId,
-          status: transaction.status
-        }])
-        .select()
-        .single();
+      if (isOfflineMode) {
+        const newTransaction = {
+          ...transaction,
+          id: Date.now().toString(),
+          created: new Date()
+        };
+        setTransactions([...transactions, newTransaction]);
+        return newTransaction;
+      }
+
+      const { data, error } = await withTimeout(
+        supabase
+          .from('transactions')
+          .insert([{
+            date: transaction.date,
+            reference: transaction.reference,
+            description: transaction.description,
+            debit_account_id: transaction.debitAccount,
+            credit_account_id: transaction.creditAccount,
+            amount: transaction.amount,
+            customer_id: transaction.customerId,
+            status: transaction.status
+          }])
+          .select()
+          .single(),
+        TIMEOUT_MS
+      );
       
       if (error) throw error;
       
       setTransactions([...transactions, data]);
       return data;
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error adding transaction:', error);
-      throw error;
+      
+      // Fallback to offline mode if operation fails
+      if (!isOfflineMode) {
+        setError(`Failed to add transaction: ${error.message}. Changes will not be saved to the database.`);
+        setIsOfflineMode(true);
+      }
+      
+      // Add to local state even if Supabase operation failed
+      const newTransaction = {
+        ...transaction,
+        id: Date.now().toString(),
+        created: new Date()
+      };
+      setTransactions([...transactions, newTransaction]);
+      return newTransaction;
     }
   };
 
-  // CRUD operations for invoices
+  // CRUD operations for invoices with error handling
   const addInvoice = async (invoice: Omit<Invoice, 'id' | 'created'>) => {
     try {
+      if (isOfflineMode) {
+        const newInvoice = {
+          ...invoice,
+          id: Date.now().toString(),
+          created: new Date()
+        };
+        setInvoices([...invoices, newInvoice]);
+        return newInvoice;
+      }
+
       // First, insert the invoice
-      const { data: invoiceData, error: invoiceError } = await supabase
-        .from('invoices')
-        .insert([{
-          invoice_number: invoice.invoiceNumber,
-          customer_id: invoice.customerId,
-          date: invoice.date,
-          due_date: invoice.dueDate,
-          total: invoice.total,
-          status: invoice.status,
-          mj_no: invoice.mjNo,
-          sales_order: invoice.salesOrder,
-          sales_quote: invoice.salesQuote,
-          description: invoice.description,
-          project: invoice.project,
-          division: invoice.division,
-          closed_invoice: invoice.closedInvoice,
-          withholding_tax: invoice.withholdingTax,
-          discount: invoice.discount,
-          chasis_no: invoice.chasisNo,
-          vehicle_no: invoice.vehicleNo,
-          car_model: invoice.carModel,
-          service_kms: invoice.serviceKms,
-          terms_conditions: invoice.termsConditions,
-          cost_of_sales: invoice.costOfSales,
-          approved_by: invoice.approvedBy,
-          created_by: invoice.createdBy,
-          credit_by: invoice.creditBy
-        }])
-        .select()
-        .single();
+      const { data: invoiceData, error: invoiceError } = await withTimeout(
+        supabase
+          .from('invoices')
+          .insert([{
+            invoice_number: invoice.invoiceNumber,
+            customer_id: invoice.customerId,
+            date: invoice.date,
+            due_date: invoice.dueDate,
+            total: invoice.total,
+            status: invoice.status,
+            mj_no: invoice.mjNo,
+            sales_order: invoice.salesOrder,
+            sales_quote: invoice.salesQuote,
+            description: invoice.description,
+            project: invoice.project,
+            division: invoice.division,
+            closed_invoice: invoice.closedInvoice,
+            withholding_tax: invoice.withholdingTax,
+            discount: invoice.discount,
+            chasis_no: invoice.chasisNo,
+            vehicle_no: invoice.vehicleNo,
+            car_model: invoice.carModel,
+            service_kms: invoice.serviceKms,
+            terms_conditions: invoice.termsConditions,
+            cost_of_sales: invoice.costOfSales,
+            approved_by: invoice.approvedBy,
+            created_by: invoice.createdBy,
+            credit_by: invoice.creditBy
+          }])
+          .select()
+          .single(),
+        TIMEOUT_MS
+      );
       
       if (invoiceError) throw invoiceError;
       
@@ -523,110 +688,111 @@ export const useSupabase = () => {
           amount: item.amount
         }));
         
-        const { error: itemsError } = await supabase
-          .from('invoice_items')
-          .insert(invoiceItems);
+        const { error: itemsError } = await withTimeout(
+          supabase
+            .from('invoice_items')
+            .insert(invoiceItems),
+          TIMEOUT_MS
+        );
         
         if (itemsError) throw itemsError;
       }
       
-      // If this is a UAE E-Invoice, insert the e-invoice data
-      if ('uaeFields' in invoice) {
-        const uaeInvoice = invoice as unknown as UAEEInvoice;
-        const { error: eInvoiceError } = await supabase
-          .from('uae_einvoices')
-          .insert([{
-            invoice_id: invoiceData.id,
-            invoice_type_code: uaeInvoice.uaeFields.invoiceTypeCode,
-            invoice_type_sub_code: uaeInvoice.uaeFields.invoiceTypeSubCode,
-            document_currency_code: uaeInvoice.uaeFields.documentCurrencyCode,
-            tax_currency_code: uaeInvoice.uaeFields.taxCurrencyCode,
-            supplier_tax_number: uaeInvoice.uaeFields.supplierTaxNumber,
-            customer_tax_number: uaeInvoice.uaeFields.customerTaxNumber,
-            payment_means_code: uaeInvoice.uaeFields.paymentMeansCode,
-            tax_category_code: uaeInvoice.uaeFields.taxCategoryCode,
-            tax_percent: uaeInvoice.uaeFields.taxPercent,
-            invoice_note: uaeInvoice.uaeFields.invoiceNote,
-            order_reference: uaeInvoice.uaeFields.orderReference,
-            contract_reference: uaeInvoice.uaeFields.contractReference,
-            additional_document_reference: uaeInvoice.uaeFields.additionalDocumentReference,
-            qr_code: uaeInvoice.uaeFields.qrCode,
-            digital_signature: uaeInvoice.uaeFields.digitalSignature,
-            previous_invoice_hash: uaeInvoice.uaeFields.previousInvoiceHash,
-            invoice_hash: uaeInvoice.uaeFields.invoiceHash,
-            uuid: uaeInvoice.uaeFields.uuid,
-            submission_date_time: uaeInvoice.uaeFields.submissionDateTime,
-            clearance_status: uaeInvoice.uaeFields.clearanceStatus,
-            clearance_date_time: uaeInvoice.uaeFields.clearanceDateTime
-          }]);
-        
-        if (eInvoiceError) throw eInvoiceError;
-      }
-      
       // Fetch the complete invoice with items
-      const { data: completeInvoice, error: fetchError } = await supabase
-        .from('invoices')
-        .select(`
-          *,
-          items:invoice_items(*)
-        `)
-        .eq('id', invoiceData.id)
-        .single();
+      const { data: completeInvoice, error: fetchError } = await withTimeout(
+        supabase
+          .from('invoices')
+          .select(`
+            *,
+            items:invoice_items(*)
+          `)
+          .eq('id', invoiceData.id)
+          .single(),
+        TIMEOUT_MS
+      );
       
       if (fetchError) throw fetchError;
       
       setInvoices([...invoices, completeInvoice]);
       return completeInvoice;
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error adding invoice:', error);
-      throw error;
+      
+      // Fallback to offline mode if operation fails
+      if (!isOfflineMode) {
+        setError(`Failed to add invoice: ${error.message}. Changes will not be saved to the database.`);
+        setIsOfflineMode(true);
+      }
+      
+      // Add to local state even if Supabase operation failed
+      const newInvoice = {
+        ...invoice,
+        id: Date.now().toString(),
+        created: new Date()
+      };
+      setInvoices([...invoices, newInvoice]);
+      return newInvoice;
     }
   };
 
   const updateInvoice = async (id: string, updates: Partial<Invoice>) => {
     try {
+      if (isOfflineMode) {
+        const updatedInvoices = invoices.map(inv => 
+          inv.id === id ? { ...inv, ...updates } : inv
+        );
+        setInvoices(updatedInvoices);
+        return updatedInvoices.find(inv => inv.id === id);
+      }
+
       // First, update the invoice
-      const { data: invoiceData, error: invoiceError } = await supabase
-        .from('invoices')
-        .update({
-          invoice_number: updates.invoiceNumber,
-          customer_id: updates.customerId,
-          date: updates.date,
-          due_date: updates.dueDate,
-          total: updates.total,
-          status: updates.status,
-          mj_no: updates.mjNo,
-          sales_order: updates.salesOrder,
-          sales_quote: updates.salesQuote,
-          description: updates.description,
-          project: updates.project,
-          division: updates.division,
-          closed_invoice: updates.closedInvoice,
-          withholding_tax: updates.withholdingTax,
-          discount: updates.discount,
-          chasis_no: updates.chasisNo,
-          vehicle_no: updates.vehicleNo,
-          car_model: updates.carModel,
-          service_kms: updates.serviceKms,
-          terms_conditions: updates.termsConditions,
-          cost_of_sales: updates.costOfSales,
-          approved_by: updates.approvedBy,
-          created_by: updates.createdBy,
-          credit_by: updates.creditBy
-        })
-        .eq('id', id)
-        .select()
-        .single();
+      const { data: invoiceData, error: invoiceError } = await withTimeout(
+        supabase
+          .from('invoices')
+          .update({
+            invoice_number: updates.invoiceNumber,
+            customer_id: updates.customerId,
+            date: updates.date,
+            due_date: updates.dueDate,
+            total: updates.total,
+            status: updates.status,
+            mj_no: updates.mjNo,
+            sales_order: updates.salesOrder,
+            sales_quote: updates.salesQuote,
+            description: updates.description,
+            project: updates.project,
+            division: updates.division,
+            closed_invoice: updates.closedInvoice,
+            withholding_tax: updates.withholdingTax,
+            discount: updates.discount,
+            chasis_no: updates.chasisNo,
+            vehicle_no: updates.vehicleNo,
+            car_model: updates.carModel,
+            service_kms: updates.serviceKms,
+            terms_conditions: updates.termsConditions,
+            cost_of_sales: updates.costOfSales,
+            approved_by: updates.approvedBy,
+            created_by: updates.createdBy,
+            credit_by: updates.creditBy
+          })
+          .eq('id', id)
+          .select()
+          .single(),
+        TIMEOUT_MS
+      );
       
       if (invoiceError) throw invoiceError;
       
       // If items are provided, update them
       if (updates.items) {
         // First, delete existing items
-        const { error: deleteError } = await supabase
-          .from('invoice_items')
-          .delete()
-          .eq('invoice_id', id);
+        const { error: deleteError } = await withTimeout(
+          supabase
+            .from('invoice_items')
+            .delete()
+            .eq('invoice_id', id),
+          TIMEOUT_MS
+        );
         
         if (deleteError) throw deleteError;
         
@@ -639,121 +805,136 @@ export const useSupabase = () => {
           amount: item.amount
         }));
         
-        const { error: itemsError } = await supabase
-          .from('invoice_items')
-          .insert(invoiceItems);
+        const { error: itemsError } = await withTimeout(
+          supabase
+            .from('invoice_items')
+            .insert(invoiceItems),
+          TIMEOUT_MS
+        );
         
         if (itemsError) throw itemsError;
       }
       
-      // If this is a UAE E-Invoice, update the e-invoice data
-      if ('uaeFields' in updates) {
-        const uaeInvoice = updates as unknown as Partial<UAEEInvoice>;
-        const { error: eInvoiceError } = await supabase
-          .from('uae_einvoices')
-          .update({
-            invoice_type_code: uaeInvoice.uaeFields?.invoiceTypeCode,
-            invoice_type_sub_code: uaeInvoice.uaeFields?.invoiceTypeSubCode,
-            document_currency_code: uaeInvoice.uaeFields?.documentCurrencyCode,
-            tax_currency_code: uaeInvoice.uaeFields?.taxCurrencyCode,
-            supplier_tax_number: uaeInvoice.uaeFields?.supplierTaxNumber,
-            customer_tax_number: uaeInvoice.uaeFields?.customerTaxNumber,
-            payment_means_code: uaeInvoice.uaeFields?.paymentMeansCode,
-            tax_category_code: uaeInvoice.uaeFields?.taxCategoryCode,
-            tax_percent: uaeInvoice.uaeFields?.taxPercent,
-            invoice_note: uaeInvoice.uaeFields?.invoiceNote,
-            order_reference: uaeInvoice.uaeFields?.orderReference,
-            contract_reference: uaeInvoice.uaeFields?.contractReference,
-            additional_document_reference: uaeInvoice.uaeFields?.additionalDocumentReference,
-            qr_code: uaeInvoice.uaeFields?.qrCode,
-            digital_signature: uaeInvoice.uaeFields?.digitalSignature,
-            previous_invoice_hash: uaeInvoice.uaeFields?.previousInvoiceHash,
-            invoice_hash: uaeInvoice.uaeFields?.invoiceHash,
-            clearance_status: uaeInvoice.uaeFields?.clearanceStatus,
-            clearance_date_time: uaeInvoice.uaeFields?.clearanceDateTime
-          })
-          .eq('invoice_id', id);
-        
-        if (eInvoiceError) throw eInvoiceError;
-      }
-      
       // Fetch the complete invoice with items
-      const { data: completeInvoice, error: fetchError } = await supabase
-        .from('invoices')
-        .select(`
-          *,
-          items:invoice_items(*)
-        `)
-        .eq('id', id)
-        .single();
+      const { data: completeInvoice, error: fetchError } = await withTimeout(
+        supabase
+          .from('invoices')
+          .select(`
+            *,
+            items:invoice_items(*)
+          `)
+          .eq('id', id)
+          .single(),
+        TIMEOUT_MS
+      );
       
       if (fetchError) throw fetchError;
       
       setInvoices(invoices.map(inv => inv.id === id ? completeInvoice : inv));
       return completeInvoice;
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error updating invoice:', error);
-      throw error;
+      
+      // Fallback to offline mode if operation fails
+      if (!isOfflineMode) {
+        setError(`Failed to update invoice: ${error.message}. Changes will not be saved to the database.`);
+        setIsOfflineMode(true);
+      }
+      
+      // Update local state even if Supabase operation failed
+      const updatedInvoices = invoices.map(inv => 
+        inv.id === id ? { ...inv, ...updates } : inv
+      );
+      setInvoices(updatedInvoices);
+      return updatedInvoices.find(inv => inv.id === id);
     }
   };
 
   const deleteInvoice = async (id: string) => {
     try {
+      if (isOfflineMode) {
+        setInvoices(invoices.filter(inv => inv.id !== id));
+        return;
+      }
+
       // Delete the invoice (cascade will delete items)
-      const { error } = await supabase
-        .from('invoices')
-        .delete()
-        .eq('id', id);
+      const { error } = await withTimeout(
+        supabase
+          .from('invoices')
+          .delete()
+          .eq('id', id),
+        TIMEOUT_MS
+      );
       
       if (error) throw error;
       
       setInvoices(invoices.filter(inv => inv.id !== id));
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error deleting invoice:', error);
-      throw error;
+      
+      // Fallback to offline mode if operation fails
+      if (!isOfflineMode) {
+        setError(`Failed to delete invoice: ${error.message}. Changes will not be saved to the database.`);
+        setIsOfflineMode(true);
+      }
+      
+      // Delete from local state even if Supabase operation failed
+      setInvoices(invoices.filter(inv => inv.id !== id));
     }
   };
 
-  // Authentication functions
+  // Authentication functions with error handling
   const signUp = async (email: string, password: string) => {
     try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-      });
+      const { data, error } = await withTimeout(
+        supabase.auth.signUp({
+          email,
+          password,
+        }),
+        TIMEOUT_MS
+      );
       
       if (error) throw error;
       
       return data;
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error signing up:', error);
+      setError(`Failed to sign up: ${error.message}`);
       throw error;
     }
   };
 
   const signIn = async (email: string, password: string) => {
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      const { data, error } = await withTimeout(
+        supabase.auth.signInWithPassword({
+          email,
+          password,
+        }),
+        TIMEOUT_MS
+      );
       
       if (error) throw error;
       
       return data;
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error signing in:', error);
+      setError(`Failed to sign in: ${error.message}`);
       throw error;
     }
   };
 
   const signOut = async () => {
     try {
-      const { error } = await supabase.auth.signOut();
+      const { error } = await withTimeout(
+        supabase.auth.signOut(),
+        TIMEOUT_MS
+      );
       
       if (error) throw error;
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error signing out:', error);
+      setError(`Failed to sign out: ${error.message}`);
       throw error;
     }
   };
@@ -818,6 +999,7 @@ export const useSupabase = () => {
     loading,
     error,
     user,
+    isOfflineMode,
     
     // CRUD operations
     addAccount,
@@ -845,6 +1027,7 @@ export const useSupabase = () => {
     getNetIncome,
     
     // Refresh data
-    fetchAllData
+    fetchAllData,
+    retryConnection
   };
 };
