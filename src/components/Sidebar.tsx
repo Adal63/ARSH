@@ -1,5 +1,6 @@
-import React from 'react';
-import { Settings } from 'lucide-react';
+import React, { useState } from 'react';
+import { Settings, LogOut } from 'lucide-react';
+import { useSupabaseContext } from '../App';
 
 interface SidebarProps {
   activeTab: string;
@@ -16,6 +17,9 @@ const Sidebar: React.FC<SidebarProps> = ({
   visibleSections, 
   sectionOrder 
 }) => {
+  const { signOut } = useSupabaseContext();
+  const [isSigningOut, setIsSigningOut] = useState(false);
+  
   // Filter and order menu items based on user preferences
   const getOrderedVisibleSections = () => {
     return sectionOrder
@@ -25,6 +29,17 @@ const Sidebar: React.FC<SidebarProps> = ({
   };
 
   const menuItems = getOrderedVisibleSections();
+
+  const handleSignOut = async () => {
+    setIsSigningOut(true);
+    try {
+      await signOut();
+    } catch (error) {
+      console.error('Error signing out:', error);
+    } finally {
+      setIsSigningOut(false);
+    }
+  };
 
   return (
     <div className="w-64 bg-gray-900 text-white min-h-screen flex flex-col">
@@ -70,6 +85,18 @@ const Sidebar: React.FC<SidebarProps> = ({
               {visibleSections.length}/{availableSections.length} sections
             </div>
           </div>
+        </button>
+      </div>
+      
+      {/* Sign Out Button */}
+      <div className="p-4 border-t border-gray-800 mt-auto">
+        <button
+          onClick={handleSignOut}
+          disabled={isSigningOut}
+          className="w-full flex items-center px-4 py-3 text-left transition-colors text-gray-300 hover:bg-gray-800 hover:text-white rounded-lg"
+        >
+          <LogOut className="w-5 h-5 mr-3" />
+          <span>{isSigningOut ? 'Signing out...' : 'Sign Out'}</span>
         </button>
       </div>
     </div>
