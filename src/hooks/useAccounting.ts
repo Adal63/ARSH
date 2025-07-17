@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Account, Customer, Transaction, Invoice, KPI, AIInsight, UAECustomer, UAESupplier } from '../types';
-import { mockKPIs, mockAIInsights } from '../data/mockData';
+import { mockKPIs, mockAIInsights, mockAccounts, mockCustomers, mockTransactions, mockInvoices } from '../data/mockData';
 import { useSupabaseContext } from '../App';
 
 export const useAccounting = () => {
@@ -34,15 +34,23 @@ export const useAccounting = () => {
 
   return {
     accounts,
+  // Use mock data if there's an error or no data from Supabase
+  const effectiveAccounts = accounts.length > 0 ? accounts : mockAccounts;
+  const effectiveCustomers = customers.length > 0 ? customers : mockCustomers;
+  const effectiveTransactions = transactions.length > 0 ? transactions : mockTransactions;
+  const effectiveInvoices = invoices.length > 0 ? invoices : mockInvoices;
+
     customers,
-    transactions,
-    invoices,
-    uaeCustomers,
-    uaeSuppliers,
+    accounts: effectiveAccounts,
+    customers: effectiveCustomers,
+    transactions: effectiveTransactions,
+    invoices: effectiveInvoices,
     kpis,
     aiInsights,
     addAccount,
     updateAccount,
+    loading,
+    error,
     deleteAccount,
     addCustomer,
     updateCustomer,
@@ -57,5 +65,7 @@ export const useAccounting = () => {
     getTotalRevenue,
     getTotalExpenses,
     getNetIncome,
+    loading,
+    error
   };
 };

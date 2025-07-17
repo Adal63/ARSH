@@ -263,13 +263,13 @@ const CRM: React.FC = () => {
               <div className="flex justify-between items-center mb-2">
                 <span className="text-gray-400 text-sm">Total Revenue</span>
                 <span className="text-green-400 font-semibold">
-                  ${(customer.totalRevenue || 0).toLocaleString()}
+                  ${customer.totalRevenue ? customer.totalRevenue.toLocaleString() : '0'}
                 </span>
               </div>
               <div className="flex justify-between items-center mb-4">
                 <span className="text-gray-400 text-sm">Last Contact</span>
                 <span className="text-gray-300 text-sm">
-                  {customer.lastContact?.toLocaleDateString() || 'Never'}
+                  {customer.lastContact ? customer.lastContact.toLocaleDateString() : 'Never'}
                 </span>
               </div>
               

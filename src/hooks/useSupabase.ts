@@ -51,7 +51,12 @@ export const useSupabase = () => {
 
   // Fetch all data on component mount
   useEffect(() => {
-    fetchAllData();
+    try {
+      fetchAllData();
+    } catch (error) {
+      console.error("Failed to fetch initial data:", error);
+      setLoading(false);
+    }
     
     // Set up auth state listener
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
@@ -71,9 +76,9 @@ export const useSupabase = () => {
   // Fetch all data from Supabase
   const fetchAllData = async () => {
     setLoading(true);
-    setError(null);
-    
     try {
+      setError(null);
+    
       // Fetch accounts
       const { data: accountsData, error: accountsError } = await supabase
         .from('accounts')
@@ -263,7 +268,7 @@ export const useSupabase = () => {
       
     } catch (err: any) {
       setError(err.message);
-      console.error('Error fetching data:', err);
+      console.error('Error in fetchAllData:', err);
     } finally {
       setLoading(false);
     }
