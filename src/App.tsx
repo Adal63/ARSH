@@ -87,8 +87,15 @@ function App() {
   // Check if user is authenticated
   if (supabase.loading) {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-white text-xl">Loading...</div>
+      <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center">
+        <div className="text-white text-xl mb-4">Loading...</div>
+        {supabase.error && (
+          <div className="text-red-400 text-sm max-w-md text-center p-4 bg-red-900/20 rounded-lg border border-red-700">
+            <p className="font-semibold mb-2">Connection Error:</p>
+            <p>{supabase.error}</p>
+            <p className="mt-4 text-gray-400">Using mock data until connection is restored.</p>
+          </div>
+        )}
       </div>
     );
   }
