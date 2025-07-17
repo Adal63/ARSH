@@ -26,7 +26,7 @@ import {
 import { mockAccounts, mockCustomers, mockTransactions, mockInvoices } from '../data/mockData';
 
 // Maximum time to wait for Supabase operations before timing out
-const TIMEOUT_MS = 10000;
+const TIMEOUT_MS = 30000;
 
 // Function to add timeout to promises
 const withTimeout = (promise, ms) => {
