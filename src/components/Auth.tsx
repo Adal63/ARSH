@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useAPI } from '../hooks/useAPI';
+import { useSupabaseContext } from '../App';
 import { Lock, Mail, User, Key, LogIn, UserPlus, AlertTriangle } from 'lucide-react';
 
 const Auth: React.FC = () => {
@@ -10,7 +10,7 @@ const Auth: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   
-  const { login, register } = useAPI();
+  const { signIn, signUp } = useSupabaseContext();
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -20,10 +20,10 @@ const Auth: React.FC = () => {
     
     try {
       if (isSignUp) {
-        await register(email, password, email.split('@')[0]); // Use email prefix as name
-        setSuccess('Account created successfully! Please check your email for verification.');
+        await signUp(email, password);
+        setSuccess('Account created successfully! You are now logged in.');
       } else {
-        await login(email, password);
+        await signIn(email, password);
         // No need to set success message for sign in as the app will redirect
       }
     } catch (err: any) {
