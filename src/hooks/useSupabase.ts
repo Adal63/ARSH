@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
+import { apiClient } from '../lib/api';
 import { 
   Account, 
   Customer, 
@@ -65,7 +65,7 @@ export const useSupabase = () => {
   const [error, setError] = useState<string | null>(null);
   const [user, setUser] = useState(null);
   const [retryCount, setRetryCount] = useState(0);
-  const [isOfflineMode, setIsOfflineMode] = useState(false);
+  const [isOfflineMode, setIsOfflineMode] = useState(true); // Start in offline mode
   const [dataInitialized, setDataInitialized] = useState(false);
 
   // Initialize with mock data if offline mode is active
@@ -82,17 +82,18 @@ export const useSupabase = () => {
   }, [isOfflineMode, dataInitialized]);
 
   // Check if Supabase is available
-  const checkSupabaseAvailability = async () => {
+  const checkBackendAvailability = async () => {
     try {
-      const { data, error } = await withTimeout(
-        supabase.from('accounts').select('count').limit(1),
-        5000
-      );
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8080/api'}/health`);
       
-      if (error) throw error;
-      return true;
+      if (response.ok) {
+        setIsOfflineMode(false);
+        return true;
+      }
+      throw new Error('Backend not available');
     } catch (err) {
-      console.warn("Supabase availability check failed:", err.message);
+      console.warn("Backend availability check failed:", err.message);
+      setIsOfflineMode(true);
       return false;
     }
   };
