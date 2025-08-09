@@ -67,5 +67,69 @@ export const useAccounting = () => {
   };
 
   const getTotalLiabilities = () => {
-  return accounts.filter(acc => acc.type === 'Liability').reduce((sum, acc) => sum + (acc.balance || 0), 0);
+    return accounts.filter(acc => acc.type === 'Liability').reduce((sum, acc) => sum + (acc.balance || 0), 0);
+  };
+
+  const getTotalEquity = () => {
+    return getTotalAssets() - getTotalLiabilities();
+  };
+
+  const getTotalRevenue = () => {
+    return accounts.filter(acc => acc.type === 'Revenue').reduce((sum, acc) => sum + (acc.balance || 0), 0);
+  };
+
+  const getTotalExpenses = () => {
+    return accounts.filter(acc => acc.type === 'Expense').reduce((sum, acc) => sum + (acc.balance || 0), 0);
+  };
+
+  const getNetIncome = () => {
+    return getTotalRevenue() - getTotalExpenses();
+  };
+
+  // Update KPIs based on current data
+  useEffect(() => {
+    if (accounts.length > 0) {
+      const updatedKPIs = [...mockKPIs];
+      
+      // Update Monthly Revenue KPI
+      const revenueKPI = updatedKPIs.find(kpi => kpi.name === 'Monthly Revenue');
+      if (revenueKPI) {
+        revenueKPI.value = getTotalRevenue();
+        revenueKPI.change = ((revenueKPI.value / revenueKPI.target) * 100) - 100;
+        revenueKPI.trend = revenueKPI.change >= 0 ? 'up' : 'down';
+      }
+
+      setKPIs(updatedKPIs);
+    }
+  }, [accounts]);
+
+  return {
+    accounts,
+    customers,
+    transactions,
+    invoices,
+    uaeCustomers: [] as UAECustomer[],
+    uaeSuppliers: [] as UAESupplier[],
+    kpis,
+    aiInsights,
+    addAccount,
+    updateAccount,
+    deleteAccount,
+    addCustomer,
+    updateCustomer,
+    deleteCustomer,
+    addTransaction,
+    addInvoice,
+    updateInvoice,
+    deleteInvoice,
+    getTotalAssets,
+    getTotalLiabilities,
+    getTotalEquity,
+    getTotalRevenue,
+    getTotalExpenses,
+    getNetIncome,
+    loading,
+    error,
+    isOfflineMode: false
+  };
 };
