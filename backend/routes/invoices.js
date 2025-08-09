@@ -180,4 +180,68 @@ router.put('/:id', [
           return res.status(500).json({ error: 'Failed to update invoice' });
         }
         if (this.changes === 0) {
-          db.
+          db.run('ROLLBACK');
+          return res.status(404).json({ error: 'Invoice not found' });
+        }
+        if (req.body.items) {
+          // Delete existing items first
+          db.run('DELETE FROM invoice_items WHERE invoice_id = ?', [req.params.id], (err) => {
+            if (err) {
+              db.run('ROLLBACK');
+              return res.status(500).json({ error: 'Failed to update invoice items' });
+            }
+            // Insert new items
+            const itemPromises = req.body.items.map(item => {
+              return new Promise((resolve, reject) => {
+                db.run(`
+                  INSERT INTO invoice_items (id, invoice_id, description, quantity, rate, amount, created_at)
+                  VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+                `, [uuidv4(), req.params.id, item.description, item.quantity, item.rate, item.amount], (err) => {
+                  if (err) reject(err);
+                  else resolve();
+                });
+              });
+            });
+            Promise.all(itemPromises)
+              .then(() => {
+                db.run('COMMIT');
+                res.json({ message: 'Invoice updated successfully' });
+              })
+              .catch(() => {
+                db.run('ROLLBACK');
+                res.status(500).json({ error: 'Failed to update invoice items' });
+              });
+          });
+        } else {
+          db.run('COMMIT');
+          res.json({ message: 'Invoice updated successfully' });
+        }
+      }
+    );
+  });
+});
+// Delete invoice
+router.delete('/:id', (req, res) => {
+  db.serialize(() => {
+    db.run('BEGIN TRANSACTION');
+    db.run('DELETE FROM invoice_items WHERE invoice_id = ?', [req.params.id], (err) => {
+      if (err) {
+        db.run('ROLLBACK');
+        return res.status(500).json({ error: 'Failed to delete invoice items' });
+      }
+      db.run('DELETE FROM invoices WHERE id = ?', [req.params.id], function(err) {
+        if (err) {
+          db.run('ROLLBACK');
+          return res.status(500).json({ error: 'Failed to delete invoice' });
+        }
+        if (this.changes === 0) {
+          db.run('ROLLBACK');
+          return res.status(404).json({ error: 'Invoice not found' });
+        }
+        db.run('COMMIT');
+        res.json({ message: 'Invoice deleted successfully' });
+      });
+    });
+  });
+});
+module.exports = router;
