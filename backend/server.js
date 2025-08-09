@@ -26,6 +26,10 @@ const uploadRoutes = require('./routes/upload');
 const app = express();
 const PORT = process.env.PORT || 8080;
 
+// Initialize database FIRST
+const database = require('./config/database');
+database.initializeDatabase();
+
 // Security middleware
 app.use(helmet());
 app.use(compression());
