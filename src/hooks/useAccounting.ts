@@ -67,4 +67,5 @@ export const useAccounting = () => {
   };
 
   const getTotalLiabilities = () => {
-    return accounts.filter(acc => acc.type === '
+  return accounts.filter(acc => acc.type === 'Liability').reduce((sum, acc) => sum + (acc.balance || 0), 0);
+};
