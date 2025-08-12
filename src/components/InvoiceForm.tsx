@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useAccounting } from '../hooks/useAccounting';
 import { Plus, Trash2, X, Search, ChevronDown, User, Upload, Image, FileText, Download, Eye, Edit3 } from 'lucide-react';
-import { InvoiceItem } from '../types';
+import { Invoice, InvoiceItem } from '../types';
 import TermsDesigner from './TermsDesigner';
 
 interface InvoiceFormProps {
