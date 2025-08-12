@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Settings, LogOut } from 'lucide-react';
-import { useSupabaseContext } from '../App';
+import { useSupabase } from '../hooks/useSupabase';
 
 interface SidebarProps {
   activeTab: string;
@@ -17,7 +17,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   visibleSections, 
   sectionOrder 
 }) => {
-  const { signOut } = useSupabaseContext();
+  const { signOut } = useSupabase();
   const [isSigningOut, setIsSigningOut] = useState(false);
   
   // Filter and order menu items based on user preferences

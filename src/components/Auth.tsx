@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useSupabaseContext } from '../App';
+import { useSupabase } from '../hooks/useSupabase';
 import { Lock, Mail, User, Key, LogIn, UserPlus, AlertTriangle } from 'lucide-react';
 
 const Auth: React.FC = () => {
@@ -10,7 +10,7 @@ const Auth: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   
-  const { signIn, signUp } = useSupabaseContext();
+  const { signIn, signUp } = useSupabase();
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

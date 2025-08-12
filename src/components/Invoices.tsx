@@ -23,6 +23,9 @@ import {
 
 export function Invoices() {
   const { invoices, customers, deleteInvoice } = useAccounting();
+  
+  // Debug logging
+  console.log('Invoices component rendered with:', { invoices, customers });
   const [showForm, setShowForm] = useState(false);
   const [showUAEForm, setShowUAEForm] = useState(false);
   const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
@@ -79,10 +82,10 @@ export function Invoices() {
             columnMatch = customerName.toLowerCase().includes(columnSearchTerm.toLowerCase());
             break;
           case 'date':
-            columnMatch = invoice.date.includes(columnSearchTerm);
+            columnMatch = invoice.date.toLocaleDateString().includes(columnSearchTerm);
             break;
           case 'dueDate':
-            columnMatch = invoice.dueDate.includes(columnSearchTerm);
+            columnMatch = invoice.dueDate.toLocaleDateString().includes(columnSearchTerm);
             break;
           case 'amount':
             columnMatch = invoice.total.toString().includes(columnSearchTerm);
@@ -162,7 +165,7 @@ export function Invoices() {
       label: `${columnOptions.find(col => col.value === selectedColumn)?.label}: "${columnSearchTerm}"`, 
       clear: clearColumnSearch 
     }
-  ].filter(Boolean);
+  ].filter((filter): filter is { type: string; label: string; clear: () => void } => Boolean(filter));
 
   const stats = {
     total: filteredInvoices.length,
@@ -182,9 +185,34 @@ export function Invoices() {
   }
 
   if (showUAEForm) {
+    // Convert regular Invoice to UAEEInvoice if editingInvoice exists
+    const uaeInvoice = editingInvoice ? {
+      ...editingInvoice,
+      uaeFields: {
+        invoiceTypeCode: '388',
+        invoiceTypeSubCode: '01',
+        documentCurrencyCode: 'AED',
+        taxCurrencyCode: 'AED',
+        supplierTaxNumber: '100502938200003',
+        customerTaxNumber: '',
+        paymentMeansCode: '30',
+        taxCategoryCode: 'S',
+        taxPercent: 5,
+        invoiceNote: '',
+        orderReference: '',
+        contractReference: '',
+        qrCode: '',
+        uuid: crypto.randomUUID(),
+        submissionDateTime: new Date(),
+        clearanceStatus: 'NOT_CLEARED' as const,
+        invoiceHash: '',
+        additionalDocumentReference: ''
+      }
+    } : null;
+    
     return (
       <UAEEInvoiceForm
-        invoice={editingInvoice}
+        invoice={uaeInvoice}
         onClose={() => {
           setShowUAEForm(false);
           setEditingInvoice(null);
@@ -194,9 +222,15 @@ export function Invoices() {
   }
 
   if (viewingInvoice) {
+    const customer = customers.find(c => c.id === viewingInvoice.customerId);
+    if (!customer) {
+      console.error('Customer not found for invoice:', viewingInvoice.id);
+      return null;
+    }
     return (
       <InvoiceView
         invoice={viewingInvoice}
+        customer={customer}
         onClose={handleViewClose}
         onEdit={() => {
           handleViewClose();
@@ -207,7 +241,9 @@ export function Invoices() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6">
+
+      
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
@@ -232,45 +268,45 @@ export function Invoices() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-        <div className="bg-white p-4 rounded-lg shadow-sm border">
+        <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
           <div className="flex items-center gap-2">
-            <FileText className="w-5 h-5 text-indigo-600" />
-            <span className="text-sm font-medium text-gray-600">Total</span>
+            <FileText className="w-5 h-5 text-indigo-400" />
+            <span className="text-sm font-medium text-gray-400">Total</span>
           </div>
-          <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
+          <p className="text-2xl font-bold text-white">{stats.total}</p>
         </div>
-        <div className="bg-white p-4 rounded-lg shadow-sm border">
+        <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
           <div className="flex items-center gap-2">
-            <DollarSign className="w-5 h-5 text-green-600" />
-            <span className="text-sm font-medium text-gray-600">Paid</span>
+            <DollarSign className="w-5 h-5 text-green-400" />
+            <span className="text-sm font-medium text-gray-400">Paid</span>
           </div>
-          <p className="text-2xl font-bold text-green-600">{stats.paid}</p>
+          <p className="text-2xl font-bold text-green-400">{stats.paid}</p>
         </div>
-        <div className="bg-white p-4 rounded-lg shadow-sm border">
+        <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
           <div className="flex items-center gap-2">
-            <Calendar className="w-5 h-5 text-yellow-600" />
-            <span className="text-sm font-medium text-gray-600">Pending</span>
+            <Calendar className="w-5 h-5 text-yellow-400" />
+            <span className="text-sm font-medium text-gray-400">Pending</span>
           </div>
-          <p className="text-2xl font-bold text-yellow-600">{stats.pending}</p>
+          <p className="text-2xl font-bold text-yellow-400">{stats.pending}</p>
         </div>
-        <div className="bg-white p-4 rounded-lg shadow-sm border">
+        <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
           <div className="flex items-center gap-2">
-            <Calendar className="w-5 h-5 text-red-600" />
-            <span className="text-sm font-medium text-gray-600">Overdue</span>
+            <Calendar className="w-5 h-5 text-red-400" />
+            <span className="text-sm font-medium text-gray-400">Overdue</span>
           </div>
-          <p className="text-2xl font-bold text-red-600">{stats.overdue}</p>
+          <p className="text-2xl font-bold text-red-400">{stats.overdue}</p>
         </div>
-        <div className="bg-white p-4 rounded-lg shadow-sm border">
+        <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
           <div className="flex items-center gap-2">
-            <DollarSign className="w-5 h-5 text-indigo-600" />
-            <span className="text-sm font-medium text-gray-600">Total Amount</span>
+            <DollarSign className="w-5 h-5 text-indigo-400" />
+            <span className="text-sm font-medium text-gray-400">Total Amount</span>
           </div>
-          <p className="text-2xl font-bold text-indigo-600">${stats.totalAmount.toFixed(2)}</p>
+          <p className="text-2xl font-bold text-indigo-400">AED {stats.totalAmount.toFixed(2)}</p>
         </div>
       </div>
 
       {/* Filters */}
-      <div className="bg-white p-4 rounded-lg shadow-sm border space-y-4">
+      <div className="bg-gray-800 rounded-lg border border-gray-700 p-4 space-y-4">
         <div className="flex flex-col lg:flex-row gap-4">
           {/* Global Search */}
           <div className="flex-1">
@@ -281,7 +317,7 @@ export function Invoices() {
                 placeholder="Search all invoices..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                className="w-full pl-10 pr-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
               />
             </div>
           </div>
@@ -291,7 +327,7 @@ export function Invoices() {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as InvoiceStatus | 'all')}
-              className="appearance-none bg-white border border-gray-300 rounded-lg px-4 py-2 pr-8 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              className="appearance-none bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 pr-8 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
             >
               <option value="all">All Status</option>
               <option value="draft">Draft</option>
@@ -310,7 +346,7 @@ export function Invoices() {
             <select
               value={selectedColumn}
               onChange={(e) => handleColumnChange(e.target.value)}
-              className="appearance-none bg-white border border-gray-300 rounded-lg px-4 py-2 pr-8 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              className="appearance-none bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 pr-8 text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
             >
               {columnOptions.map(option => (
                 <option key={option.value} value={option.value}>
@@ -330,12 +366,12 @@ export function Invoices() {
               value={columnSearchTerm}
               onChange={(e) => setColumnSearchTerm(e.target.value)}
               disabled={selectedColumn === 'all'}
-              className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-400"
+              className="w-full pl-10 pr-10 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:bg-gray-600 disabled:text-gray-500"
             />
             {columnSearchTerm && (
               <button
                 onClick={clearColumnSearch}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-300"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -346,14 +382,14 @@ export function Invoices() {
         {/* Active Filters */}
         {activeFilters.length > 0 && (
           <div className="flex flex-wrap gap-2 items-center">
-            <span className="text-sm font-medium text-gray-600">Active filters:</span>
+            <span className="text-sm font-medium text-gray-400">Active filters:</span>
             {activeFilters.map((filter, index) => (
               <span
                 key={index}
                 className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
-                  filter.type === 'global' ? 'bg-blue-100 text-blue-800' :
-                  filter.type === 'status' ? 'bg-purple-100 text-purple-800' :
-                  'bg-green-100 text-green-800'
+                  filter.type === 'global' ? 'bg-blue-900/30 text-blue-300 border border-blue-700' :
+                  filter.type === 'status' ? 'bg-purple-900/30 text-purple-300 border border-purple-700' :
+                  'bg-green-900/30 text-green-300 border border-green-700'
                 }`}
               >
                 {filter.label}
@@ -367,7 +403,7 @@ export function Invoices() {
             ))}
             <button
               onClick={clearAllFilters}
-              className="text-xs text-gray-500 hover:text-gray-700 underline"
+              className="text-xs text-gray-400 hover:text-gray-300 underline"
             >
               Clear all
             </button>
@@ -376,55 +412,55 @@ export function Invoices() {
       </div>
 
       {/* Invoices Table */}
-      <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
+      <div className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gray-50">
+            <thead className="bg-gray-700">
               <tr>
                 {visibleColumns.invoiceNumber && (
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
                     Invoice #
                   </th>
                 )}
                 {visibleColumns.customer && (
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
                     Customer
                   </th>
                 )}
                 {visibleColumns.date && (
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
                     Date
                   </th>
                 )}
                 {visibleColumns.dueDate && (
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
                     Due Date
                   </th>
                 )}
                 {visibleColumns.amount && (
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
                     Amount
                   </th>
                 )}
                 {visibleColumns.status && (
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
                     Status
                   </th>
                 )}
                 {visibleColumns.actions && (
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
                     Actions
                   </th>
                 )}
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="divide-y divide-gray-700">
               {filteredInvoices.map((invoice) => {
                 const customer = customers.find(c => c.id === invoice.customerId);
                 return (
-                  <tr key={invoice.id} className="hover:bg-gray-50">
+                  <tr key={invoice.id} className="hover:bg-gray-700/50">
                     {visibleColumns.invoiceNumber && (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-white">
                         {invoice.invoiceNumber}
                       </td>
                     )}
@@ -432,25 +468,25 @@ export function Invoices() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
                           <User className="w-4 h-4 text-gray-400 mr-2" />
-                          <span className="text-sm text-gray-900">
+                          <span className="text-sm text-white">
                             {customer?.name || 'Customer Not Found'}
                           </span>
                         </div>
                       </td>
                     )}
                     {visibleColumns.date && (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {invoice.date}
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
+                        {invoice.date.toLocaleDateString()}
                       </td>
                     )}
                     {visibleColumns.dueDate && (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {invoice.dueDate}
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
+                        {invoice.dueDate.toLocaleDateString()}
                       </td>
                     )}
                     {visibleColumns.amount && (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        ${invoice.total.toFixed(2)}
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-white">
+                        AED {invoice.total.toFixed(2)}
                       </td>
                     )}
                     {visibleColumns.status && (
@@ -497,8 +533,8 @@ export function Invoices() {
         {filteredInvoices.length === 0 && (
           <div className="text-center py-12">
             <FileText className="mx-auto h-12 w-12 text-gray-400" />
-            <h3 className="mt-2 text-sm font-medium text-gray-900">No invoices found</h3>
-            <p className="mt-1 text-sm text-gray-500">
+            <h3 className="mt-2 text-sm font-medium text-white">No invoices found</h3>
+            <p className="mt-1 text-sm text-gray-400">
               {searchTerm || statusFilter !== 'all' || columnSearchTerm
                 ? 'Try adjusting your search filters.'
                 : 'Get started by creating a new invoice.'}
